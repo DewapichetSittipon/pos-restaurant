@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: pos-restaurant-backend
+    runtime: node
+    plan: free
+    region: singapore
+    rootDir: backend
+    # --include=dev จำเป็น: @nestjs/cli, typescript, prisma อยู่ใน devDependencies
+    # แต่ NODE_ENV=production ทำให้ npm ข้าม devDeps ตามปกติ
+    buildCommand: npm install --include=dev && npx prisma generate && npm run build
+    startCommand: npx prisma migrate deploy && npm run start:prod
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_EXPIRES_IN
+        value: 12h
+      # ค่าลับ — ตั้งเองในหน้า Render Dashboard (ไม่ commit ลง repo)
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      # อัปเดตเป็น URL ของ Cloudflare Pages หลัง frontend ขึ้น
+      - key: CORS_ORIGIN
+        value: "*"
