@@ -1,0 +1,17 @@
+{
+  "name": "pos-res",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "shared",
+    "backend",
+    "web"
+  ],
+  "scripts": {
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down",
+    "backend:dev": "npm run start:dev --workspace backend",
+    "prisma:migrate": "npm run prisma:migrate --workspace backend",
+    "prisma:seed": "npm run prisma:seed --workspace backend"
+  }
+}

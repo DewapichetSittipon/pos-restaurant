@@ -1,0 +1,189 @@
+// Prisma schema สำหรับระบบ POS ร้านอาหาร + QR ordering (multi-tenant SaaS)
+// ดูคำอธิบายโมเดลที่ ../../CONTEXT.md และเหตุผลที่ ../../docs/adr/
+// เงินทั้งหมดเก็บเป็น Int หน่วย "สตางค์" (เลี่ยง float rounding)
+// Multi-tenant: ทุก entity หลักผูกกับ Shop ด้วย shop_id — query ฝั่งพนักงาน scope ด้วย staff.shopId
+// ฝั่งลูกค้า scope ด้วย bill.shopId (resolve จาก qr_token)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TableStatus {
+  vacant
+  occupied
+}
+
+enum BillStatus {
+  pending
+  paid
+}
+
+// OrderItem ใช้ queued (ไม่ใช่ pending) เพื่อเลี่ยงชนกับ BillStatus.pending
+enum OrderItemStatus {
+  queued
+  cooking
+  served
+  voided
+}
+
+enum ServiceRequestType {
+  call_staff
+  call_bill
+}
+
+enum ServiceRequestStatus {
+  pending
+  acknowledged
+}
+
+// ผู้ดูแลแพลตฟอร์ม (เจ้าของระบบ SaaS) — อยู่เหนือทุกร้าน ใช้สร้าง/จัดการร้าน
+// แยกจาก Staff โดยสิ้นเชิง (ไม่ผูก shopId) login คนละ cookie/endpoint
+model PlatformAdmin {
+  id            Int      @id @default(autoincrement())
+  username      String   @unique
+  passwordHash  String   @map("password_hash")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@map("platform_admins")
+}
+
+// ร้านค้า (tenant) — หนึ่งบัญชี SaaS หนึ่งร้าน มี staff ได้หลายคน
+model Shop {
+  id        Int      @id @default(autoincrement())
+  name      String
+  slug      String   @unique // ใช้ทำ URL/subdomain ภายหลัง
+  createdAt DateTime @default(now()) @map("created_at")
+
+  staff      Staff[]
+  tables     Table[]
+  categories Category[]
+  menus      Menu[]
+  bills      Bill[]
+
+  @@map("shops")
+}
+
+model Table {
+  id           Int         @id @default(autoincrement())
+  shopId       Int         @map("shop_id")
+  tableNumber  String      @map("table_number")
+  status       TableStatus @default(vacant)
+
+  shop  Shop   @relation(fields: [shopId], references: [id])
+  bills Bill[]
+
+  // table_number unique ต่อร้าน (คนละร้านมีโต๊ะเลขเดียวกันได้)
+  @@unique([shopId, tableNumber])
+  @@index([shopId])
+  @@map("tables")
+}
+
+model Category {
+  id      Int    @id @default(autoincrement())
+  shopId  Int    @map("shop_id")
+  name    String
+
+  shop  Shop   @relation(fields: [shopId], references: [id])
+  menus Menu[]
+
+  @@index([shopId])
+  @@map("categories")
+}
+
+model Menu {
+  id           Int      @id @default(autoincrement())
+  shopId       Int      @map("shop_id")
+  categoryId   Int      @map("category_id")
+  name         String
+  price        Int // สตางค์
+  stockCount   Int?     @map("stock_count") // null = ไม่นับสต็อก
+  isAvailable  Boolean  @default(true) @map("is_available") // สวิตช์ manual
+  isArchived   Boolean  @default(false) @map("is_archived") // soft delete
+  imageUrl     String?  @map("image_url") // path รูป เช่น /uploads/menus/xxx.jpg (null = ใช้ placeholder)
+
+  shop         Shop        @relation(fields: [shopId], references: [id])
+  category     Category    @relation(fields: [categoryId], references: [id])
+  orderItems   OrderItem[]
+
+  @@index([shopId])
+  @@index([categoryId])
+  @@map("menus")
+}
+
+model Bill {
+  id          Int        @id @default(autoincrement())
+  shopId      Int        @map("shop_id")
+  tableId     Int        @map("table_id")
+  totalPrice  Int?       @map("total_price") // สตางค์, snapshot ตอน checkout
+  status      BillStatus @default(pending)
+  qrToken     String     @unique @map("qr_token") // UUID (unique ทั้งระบบ)
+  createdAt   DateTime   @default(now()) @map("created_at")
+  paidAt      DateTime?  @map("paid_at")
+
+  shop            Shop             @relation(fields: [shopId], references: [id])
+  table           Table            @relation(fields: [tableId], references: [id])
+  orderItems      OrderItem[]
+  serviceRequests ServiceRequest[]
+
+  // หนึ่งโต๊ะมี Bill ที่ pending ได้ทีละหนึ่ง (บังคับใน application logic)
+  @@index([shopId])
+  @@index([tableId])
+  @@index([status])
+  @@index([paidAt])
+  @@map("bills")
+}
+
+model OrderItem {
+  id         Int             @id @default(autoincrement())
+  billId     Int             @map("bill_id")
+  menuId     Int             @map("menu_id")
+  batchId    String          @map("batch_id") // UUID จัดกลุ่ม "รอบการสั่ง"
+  quantity   Int
+  unitPrice  Int             @map("unit_price") // สตางค์, snapshot ตอนสั่ง
+  itemName   String          @map("item_name") // snapshot ชื่อตอนสั่ง
+  imageUrl   String?         @map("image_url") // snapshot รูปตอนสั่ง
+  status     OrderItemStatus @default(queued)
+  createdAt  DateTime        @default(now()) @map("created_at") // เวลาสั่ง
+  servedAt   DateTime?       @map("served_at") // เวลาเสิร์ฟ (เซ็ตตอน status -> served)
+
+  bill       Bill @relation(fields: [billId], references: [id])
+  menu       Menu @relation(fields: [menuId], references: [id])
+
+  // ผูกร้านผ่าน bill (ไม่เก็บ shop_id ซ้ำ)
+  @@index([billId])
+  @@index([batchId])
+  @@index([status])
+  @@map("order_items")
+}
+
+model Staff {
+  id            Int       @id @default(autoincrement())
+  shopId        Int       @map("shop_id")
+  username      String    @unique // unique ทั้งระบบ = login ตรงโดยไม่ต้องเลือกร้าน
+  passwordHash  String    @map("password_hash")
+
+  shop Shop @relation(fields: [shopId], references: [id])
+
+  @@index([shopId])
+  @@map("staff")
+}
+
+model ServiceRequest {
+  id         Int                  @id @default(autoincrement())
+  billId     Int                  @map("bill_id")
+  type       ServiceRequestType
+  status     ServiceRequestStatus @default(pending)
+  createdAt  DateTime             @default(now()) @map("created_at")
+
+  bill       Bill @relation(fields: [billId], references: [id])
+
+  // ผูกร้านผ่าน bill
+  @@index([billId])
+  @@index([status])
+  @@map("service_requests")
+}
