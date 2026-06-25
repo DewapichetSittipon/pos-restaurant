@@ -17,6 +17,7 @@ import { PlatformAdminGuard } from './platform-admin.guard';
 import { ADMIN_TOKEN_COOKIE } from './admin.types';
 import { CurrentAdmin } from './current-admin.decorator';
 import type { PlatformAdminJwtPayload } from './admin.types';
+import { CROSS_SITE_COOKIE } from '../common/cookie-options';
 
 @Controller('admin')
 export class AdminController {
@@ -30,8 +31,7 @@ export class AdminController {
     const { token, admin } = await this.admin.login(dto.username, dto.password);
     res.cookie(ADMIN_TOKEN_COOKIE, token, {
       httpOnly: true,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
+      ...CROSS_SITE_COOKIE,
       maxAge: 1000 * 60 * 60 * 12,
     });
     return { admin };
@@ -39,7 +39,7 @@ export class AdminController {
 
   @Post('logout')
   logout(@Res({ passthrough: true }) res: Response) {
-    res.clearCookie(ADMIN_TOKEN_COOKIE);
+    res.clearCookie(ADMIN_TOKEN_COOKIE, CROSS_SITE_COOKIE);
     return { ok: true };
   }
 

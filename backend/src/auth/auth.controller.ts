@@ -5,6 +5,7 @@ import { LoginDto } from './dto/login.dto';
 import { ACCESS_TOKEN_COOKIE, JwtAuthGuard } from './jwt-auth.guard';
 import { CurrentStaff } from './current-staff.decorator';
 import type { JwtPayload } from './auth.types';
+import { CROSS_SITE_COOKIE } from '../common/cookie-options';
 
 @Controller('auth')
 export class AuthController {
@@ -18,8 +19,7 @@ export class AuthController {
     const { token, staff } = await this.auth.login(dto.username, dto.password);
     res.cookie(ACCESS_TOKEN_COOKIE, token, {
       httpOnly: true,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
+      ...CROSS_SITE_COOKIE,
       maxAge: 1000 * 60 * 60 * 12,
     });
     return { staff };
@@ -27,7 +27,7 @@ export class AuthController {
 
   @Post('logout')
   logout(@Res({ passthrough: true }) res: Response) {
-    res.clearCookie(ACCESS_TOKEN_COOKIE);
+    res.clearCookie(ACCESS_TOKEN_COOKIE, CROSS_SITE_COOKIE);
     return { ok: true };
   }
 
