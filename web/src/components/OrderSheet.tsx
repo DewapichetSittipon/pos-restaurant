@@ -1,4 +1,5 @@
 import type { OrderItem, ServiceRequestType } from '../type/domain';
+import { formatBaht } from '../utils/money';
 import { OrderHistory } from './OrderHistory';
 import { ServiceButtons } from './ServiceButtons';
 
@@ -11,6 +12,10 @@ interface OrderSheetProps {
 
 export function OrderSheet({ open, items, onClose, onRequest }: OrderSheetProps) {
   if (!open) return null;
+
+  const total = items
+    .filter((item) => item.status !== 'voided')
+    .reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
 
   return (
     <div className="fixed inset-0 z-30 flex flex-col justify-end">
@@ -25,6 +30,13 @@ export function OrderSheet({ open, items, onClose, onRequest }: OrderSheetProps)
         </div>
 
         <OrderHistory items={items} />
+
+        {items.length > 0 && (
+          <div className="mt-4 flex items-center justify-between border-t border-slate-200 pt-4">
+            <span className="text-base font-semibold text-slate-600">รวมทั้งหมด</span>
+            <span className="text-lg font-bold text-slate-800">{formatBaht(total)}</span>
+          </div>
+        )}
 
         <div className="mt-6 border-t border-slate-200 pt-5">
           <p className="mb-3 text-sm font-semibold text-slate-500">ต้องการความช่วยเหลือ?</p>
