@@ -1,0 +1,11 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pos-restaurant",
+  "compatibility_date": "2025-06-01",
+  // เสิร์ฟไฟล์ static จาก dist; SPA routing ให้ wrangler คืน index.html
+  // เมื่อ path ไม่ตรงไฟล์จริง (แทน _redirects ของ Pages)
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  }
+}
