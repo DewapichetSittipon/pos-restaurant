@@ -4,11 +4,16 @@ export interface PlatformAdmin {
   username: string;
 }
 
+export type ShopStatus = 'pending' | 'active';
+
 // สรุปร้านสำหรับหน้า admin console
 export interface ShopSummary {
   id: number;
   name: string;
   slug: string;
+  status: ShopStatus;
+  contactName: string | null;
+  phone: string | null;
   createdAt: string;
   staffCount: number;
   tableCount: number;
@@ -26,26 +31,11 @@ export interface CreateShopResult {
   staff: { id: number; username: string; shopId: number };
 }
 
-export type ShopRequestStatus = 'pending' | 'approved' | 'rejected';
-
-// คำขอเปิดร้านที่ admin เห็นในคอนโซล
-export interface ShopRequest {
-  id: number;
+// payload ที่ร้านกรอกตอนสมัครเปิดร้านเอง (public)
+export interface SignupPayload {
   shopName: string;
   contactName: string;
-  phone: string;
-  note: string | null;
-  status: ShopRequestStatus;
-  adminNote: string | null;
-  createdShopId: number | null;
-  createdAt: string;
-  reviewedAt: string | null;
-}
-
-// payload ที่ร้านส่งจากหน้า public
-export interface SubmitShopRequestPayload {
-  shopName: string;
-  contactName: string;
-  phone: string;
-  note?: string;
+  phone?: string;
+  staffUsername: string;
+  staffPassword: string;
 }

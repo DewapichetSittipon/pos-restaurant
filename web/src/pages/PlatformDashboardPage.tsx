@@ -3,23 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
   adminLogout,
-  approveShopRequest,
+  approveShop,
   createShop,
   deleteShop,
-  fetchShopRequests,
   fetchShops,
-  rejectShopRequest,
 } from '../services/platformApi';
 import { usePlatformStore } from '../store/platformStore';
-import type { ShopRequest, ShopSummary } from '../type/platform';
-
-// เดา slug จากชื่อร้าน (ตัดเหลือ a-z0-9- ให้ admin แก้ต่อได้)
-function slugify(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
+import type { ShopSummary } from '../type/platform';
 
 const EMPTY = { shopName: '', slug: '', staffUsername: '', staffPassword: '' };
 
@@ -39,24 +29,14 @@ export function PlatformDashboardPage() {
   const [confirmText, setConfirmText] = useState('');
   const [deleting, setDeleting] = useState(false);
 
-  // คำขอเปิดร้าน + modal อนุมัติ (กำหนด slug/login ตอนอนุมัติ)
-  const [requests, setRequests] = useState<ShopRequest[]>([]);
-  const [approveTarget, setApproveTarget] = useState<ShopRequest | null>(null);
-  const [approveForm, setApproveForm] = useState({
-    slug: '',
-    staffUsername: '',
-    staffPassword: '',
-  });
-  const [approving, setApproving] = useState(false);
+  // อนุมัติ/ปฏิเสธร้านที่สมัครเอง (สถานะ pending)
+  const [approvingId, setApprovingId] = useState<number | null>(null);
   const [rejectingId, setRejectingId] = useState<number | null>(null);
 
   const reload = useCallback(() => {
     fetchShops()
       .then(setShops)
       .catch(() => setError('โหลดรายชื่อร้านไม่สำเร็จ'));
-    fetchShopRequests()
-      .then(setRequests)
-      .catch(() => setError('โหลดคำขอเปิดร้านไม่สำเร็จ'));
   }, []);
 
   useEffect(() => {
@@ -123,51 +103,29 @@ export function PlatformDashboardPage() {
     }
   }
 
-  // เปิด modal อนุมัติ — prefill slug จากชื่อร้าน
-  function askApprove(req: ShopRequest): void {
-    setApproveTarget(req);
-    setApproveForm({
-      slug: slugify(req.shopName),
-      staffUsername: '',
-      staffPassword: '',
-    });
+  async function handleApprove(shop: ShopSummary): Promise<void> {
+    setApprovingId(shop.id);
     setError(null);
     setSuccess(null);
-  }
-
-  async function confirmApprove(e: React.FormEvent): Promise<void> {
-    e.preventDefault();
-    if (!approveTarget) return;
-    setApproving(true);
-    setError(null);
     try {
-      const result = await approveShopRequest(approveTarget.id, {
-        shopName: approveTarget.shopName,
-        ...approveForm,
-      });
-      setSuccess(
-        `อนุมัติ "${result.shop.name}" แล้ว · login ร้าน: ${result.staff.username}`,
-      );
-      setApproveTarget(null);
+      await approveShop(shop.id);
+      setSuccess(`เปิดใช้งานร้าน "${shop.name}" แล้ว`);
       reload();
-    } catch (err) {
-      const msg =
-        axios.isAxiosError(err) && err.response?.data?.message
-          ? String(err.response.data.message)
-          : 'อนุมัติไม่สำเร็จ';
-      setError(msg);
+    } catch {
+      setError('อนุมัติไม่สำเร็จ');
     } finally {
-      setApproving(false);
+      setApprovingId(null);
     }
   }
 
-  async function handleReject(req: ShopRequest): Promise<void> {
-    setRejectingId(req.id);
+  // ปฏิเสธ = ลบร้าน pending ทิ้ง (ยังไม่มีข้อมูล ลบได้ทันทีไม่ต้องยืนยันชื่อ)
+  async function handleReject(shop: ShopSummary): Promise<void> {
+    setRejectingId(shop.id);
     setError(null);
     setSuccess(null);
     try {
-      await rejectShopRequest(req.id);
-      setSuccess(`ปฏิเสธคำขอจาก "${req.shopName}" แล้ว`);
+      await deleteShop(shop.id);
+      setSuccess(`ปฏิเสธคำขอจาก "${shop.name}" แล้ว`);
       reload();
     } catch {
       setError('ปฏิเสธไม่สำเร็จ');
@@ -176,7 +134,7 @@ export function PlatformDashboardPage() {
     }
   }
 
-  const pendingRequests = requests.filter((r) => r.status === 'pending');
+  const pendingShops = shops.filter((s) => s.status === 'pending');
 
   return (
     <div className="min-h-screen bg-slate-100">
@@ -198,51 +156,50 @@ export function PlatformDashboardPage() {
       </header>
 
       <div className="mx-auto max-w-4xl space-y-8 px-6 py-8">
-        {/* คำขอเปิดร้านที่รอดำเนินการ */}
+        {/* ร้านที่สมัครเองและรออนุมัติ */}
         <section className="rounded-2xl bg-white p-6 shadow-sm">
           <h2 className="mb-4 flex items-center gap-2 text-base font-bold">
-            คำขอเปิดร้าน
-            {pendingRequests.length > 0 && (
+            ร้านรออนุมัติ
+            {pendingShops.length > 0 && (
               <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
-                {pendingRequests.length} รอดำเนินการ
+                {pendingShops.length} รอดำเนินการ
               </span>
             )}
           </h2>
-          {pendingRequests.length === 0 ? (
+          {pendingShops.length === 0 ? (
             <p className="py-6 text-center text-sm text-slate-400">
-              ไม่มีคำขอที่รอดำเนินการ
+              ไม่มีร้านที่รออนุมัติ
             </p>
           ) : (
             <ul className="space-y-3">
-              {pendingRequests.map((req) => (
+              {pendingShops.map((shop) => (
                 <li
-                  key={req.id}
+                  key={shop.id}
                   className="flex flex-col gap-3 rounded-xl border border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div className="min-w-0">
-                    <p className="font-semibold">{req.shopName}</p>
+                    <p className="font-semibold">{shop.name}</p>
                     <p className="text-sm text-slate-500">
-                      {req.contactName} · {req.phone}
+                      {shop.contactName ?? '—'}
+                      {shop.phone ? ` · ${shop.phone}` : ''}
                     </p>
-                    {req.note && (
-                      <p className="mt-1 text-sm text-slate-400">{req.note}</p>
-                    )}
                   </div>
                   <div className="flex shrink-0 gap-2">
                     <button
                       type="button"
-                      onClick={() => askApprove(req)}
-                      className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white"
+                      onClick={() => handleApprove(shop)}
+                      disabled={approvingId === shop.id}
+                      className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
                     >
-                      อนุมัติ
+                      {approvingId === shop.id ? 'กำลังเปิด...' : 'เปิดใช้งาน'}
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleReject(req)}
-                      disabled={rejectingId === req.id}
+                      onClick={() => handleReject(shop)}
+                      disabled={rejectingId === shop.id}
                       className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-600 disabled:opacity-50"
                     >
-                      {rejectingId === req.id ? 'กำลังปฏิเสธ...' : 'ปฏิเสธ'}
+                      {rejectingId === shop.id ? 'กำลังปฏิเสธ...' : 'ปฏิเสธ'}
                     </button>
                   </div>
                 </li>
@@ -337,6 +294,7 @@ export function PlatformDashboardPage() {
                   <tr className="border-b border-slate-200 text-left text-slate-500">
                     <th className="py-2 pr-4 font-medium">ชื่อร้าน</th>
                     <th className="py-2 pr-4 font-medium">slug</th>
+                    <th className="py-2 pr-4 font-medium">สถานะ</th>
                     <th className="py-2 pr-4 font-medium">พนักงาน</th>
                     <th className="py-2 pr-4 font-medium">โต๊ะ</th>
                     <th className="py-2 font-medium"></th>
@@ -347,6 +305,17 @@ export function PlatformDashboardPage() {
                     <tr key={shop.id} className="border-b border-slate-100">
                       <td className="py-2.5 pr-4 font-medium">{shop.name}</td>
                       <td className="py-2.5 pr-4 text-slate-500">{shop.slug}</td>
+                      <td className="py-2.5 pr-4">
+                        {shop.status === 'pending' ? (
+                          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
+                            รออนุมัติ
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                            ใช้งาน
+                          </span>
+                        )}
+                      </td>
                       <td className="py-2.5 pr-4">{shop.staffCount}</td>
                       <td className="py-2.5 pr-4">{shop.tableCount}</td>
                       <td className="py-2.5 text-right">
@@ -412,92 +381,6 @@ export function PlatformDashboardPage() {
               </button>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* อนุมัติคำขอ — กำหนด slug + login ของร้าน */}
-      {approveTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-6">
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => !approving && setApproveTarget(null)}
-          />
-          <form
-            onSubmit={confirmApprove}
-            className="relative w-full max-w-sm space-y-4 rounded-2xl bg-white p-6 shadow-xl"
-          >
-            <div>
-              <h3 className="text-lg font-bold">อนุมัติเปิดร้าน</h3>
-              <p className="mt-1 text-sm text-slate-500">
-                {approveTarget.shopName} · {approveTarget.contactName} ·{' '}
-                {approveTarget.phone}
-              </p>
-            </div>
-            <label className="block">
-              <span className="mb-1 block text-sm font-medium text-slate-600">
-                slug (a-z, 0-9, -)
-              </span>
-              <input
-                autoCapitalize="none"
-                value={approveForm.slug}
-                onChange={(e) =>
-                  setApproveForm((f) => ({ ...f, slug: e.target.value }))
-                }
-                className="w-full rounded-lg border border-slate-300 px-3 py-2.5"
-              />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-sm font-medium text-slate-600">
-                ชื่อผู้ใช้ (login ร้าน)
-              </span>
-              <input
-                autoCapitalize="none"
-                value={approveForm.staffUsername}
-                onChange={(e) =>
-                  setApproveForm((f) => ({
-                    ...f,
-                    staffUsername: e.target.value,
-                  }))
-                }
-                placeholder="อย่างน้อย 3 ตัวอักษร"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2.5"
-              />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-sm font-medium text-slate-600">
-                รหัสผ่าน
-              </span>
-              <input
-                value={approveForm.staffPassword}
-                onChange={(e) =>
-                  setApproveForm((f) => ({
-                    ...f,
-                    staffPassword: e.target.value,
-                  }))
-                }
-                placeholder="อย่างน้อย 6 ตัวอักษร"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2.5"
-              />
-            </label>
-            {error && <p className="text-sm text-rose-600">{error}</p>}
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setApproveTarget(null)}
-                disabled={approving}
-                className="flex-1 rounded-lg bg-slate-100 py-2.5 text-sm font-semibold text-slate-700"
-              >
-                ยกเลิก
-              </button>
-              <button
-                type="submit"
-                disabled={approving}
-                className="flex-1 rounded-lg bg-emerald-600 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-              >
-                {approving ? 'กำลังสร้าง...' : 'อนุมัติ + สร้างร้าน'}
-              </button>
-            </div>
-          </form>
         </div>
       )}
     </div>

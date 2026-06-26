@@ -13,7 +13,6 @@ import type { Response } from 'express';
 import { AdminService } from './admin.service';
 import { AdminLoginDto } from './dto/admin-login.dto';
 import { CreateShopDto } from './dto/create-shop.dto';
-import { RejectShopRequestDto } from './dto/reject-shop-request.dto';
 import { PlatformAdminGuard } from './platform-admin.guard';
 import { ADMIN_TOKEN_COOKIE } from './admin.types';
 import { CurrentAdmin } from './current-admin.decorator';
@@ -62,36 +61,16 @@ export class AdminController {
     return this.admin.createShop(dto);
   }
 
+  // อนุมัติร้านที่สมัครเอง (pending -> active)
+  @Post('shops/:id/approve')
+  @UseGuards(PlatformAdminGuard)
+  approveShop(@Param('id', ParseIntPipe) id: number) {
+    return this.admin.approveShop(id);
+  }
+
   @Delete('shops/:id')
   @UseGuards(PlatformAdminGuard)
   deleteShop(@Param('id', ParseIntPipe) id: number) {
     return this.admin.deleteShop(id);
-  }
-
-  // ----- คำขอเปิดร้าน (onboarding) -----
-
-  @Get('shop-requests')
-  @UseGuards(PlatformAdminGuard)
-  listShopRequests() {
-    return this.admin.listShopRequests();
-  }
-
-  // อนุมัติ: admin กำหนด slug + login ของร้าน (ลอก body จาก CreateShopDto)
-  @Post('shop-requests/:id/approve')
-  @UseGuards(PlatformAdminGuard)
-  approveShopRequest(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: CreateShopDto,
-  ) {
-    return this.admin.approveShopRequest(id, dto);
-  }
-
-  @Post('shop-requests/:id/reject')
-  @UseGuards(PlatformAdminGuard)
-  rejectShopRequest(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: RejectShopRequestDto,
-  ) {
-    return this.admin.rejectShopRequest(id, dto.adminNote);
   }
 }

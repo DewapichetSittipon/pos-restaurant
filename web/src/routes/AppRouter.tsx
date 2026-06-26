@@ -5,7 +5,7 @@ import { AdminGridPage } from '../pages/AdminGridPage';
 import { KitchenPage } from '../pages/KitchenPage';
 import { EodReportPage } from '../pages/EodReportPage';
 import { ManagePage } from '../pages/ManagePage';
-import { RequestShopPage } from '../pages/RequestShopPage';
+import { SignupPage } from '../pages/SignupPage';
 import { StaffLayout } from '../components/StaffLayout';
 import { ProtectedRoute } from '../components/ProtectedRoute';
 import { PlatformLoginPage } from '../pages/PlatformLoginPage';
@@ -31,8 +31,8 @@ export function AppRouter() {
           }
         />
 
-        {/* ร้านค้าขอเปิดร้าน (public) */}
-        <Route path="/request-shop" element={<RequestShopPage />} />
+        {/* ร้านค้าสมัครเปิดร้านเอง (public) */}
+        <Route path="/signup" element={<SignupPage />} />
 
         {/* พนักงาน */}
         <Route path="/login" element={<LoginPage />} />

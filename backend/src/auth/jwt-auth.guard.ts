@@ -39,7 +39,12 @@ export class JwtAuthGuard implements CanActivate {
     // (กัน token ค้างหลัง reseed/ลบบัญชี ที่ทำให้ shopId อ้างถึงร้านที่ไม่มีแล้ว -> FK error)
     const staff = await this.prisma.staff.findUnique({
       where: { id: payload.sub },
-      select: { id: true, username: true, shopId: true },
+      select: {
+        id: true,
+        username: true,
+        shopId: true,
+        shop: { select: { status: true } },
+      },
     });
     if (!staff) {
       throw new UnauthorizedException(
@@ -51,6 +56,7 @@ export class JwtAuthGuard implements CanActivate {
       sub: staff.id,
       username: staff.username,
       shopId: staff.shopId,
+      shopStatus: staff.shop.status,
     };
     return true;
   }

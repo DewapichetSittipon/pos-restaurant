@@ -16,6 +16,7 @@ import type { Bill, Table } from '@prisma/client';
 import { MenusService } from './menus.service';
 import { CreateMenuDto, UpdateMenuDto } from './dto/menu.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ActiveShopGuard } from '../auth/active-shop.guard';
 import { CurrentShop } from '../auth/current-shop.decorator';
 import { CustomerTokenGuard } from '../auth/customer-token.guard';
 import { CurrentBill } from '../auth/current-bill.decorator';
@@ -24,9 +25,9 @@ import {
   type UploadedImageFile,
 } from '../uploads/uploads.constants';
 
-// ฝั่งพนักงาน: ดู + จัดการเมนูของร้านตัวเอง (JWT)
+// ฝั่งพนักงาน: ดู + จัดการเมนูของร้านตัวเอง (JWT + ร้าน active)
 @Controller('menus')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, ActiveShopGuard)
 export class MenusController {
   constructor(private readonly menus: MenusService) {}
 

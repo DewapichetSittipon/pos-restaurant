@@ -27,6 +27,7 @@ export interface Staff {
   id: number;
   username: string;
   shopId: number; // tenant ของพนักงาน
+  shopStatus: 'pending' | 'active'; // pending = รออนุมัติ ใช้งานไม่ได้
 }
 
 // โต๊ะ + บิล pending (พร้อม service request) สำหรับ grid หลังบ้าน

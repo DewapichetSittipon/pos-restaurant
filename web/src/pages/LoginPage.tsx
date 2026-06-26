@@ -58,8 +58,8 @@ export function LoginPage() {
         </button>
         <p className="text-center text-sm text-slate-500">
           ยังไม่มีร้าน?{' '}
-          <Link to="/request-shop" className="font-medium text-indigo-600">
-            ขอเปิดร้านใหม่
+          <Link to="/signup" className="font-medium text-indigo-600">
+            สมัครเปิดร้าน
           </Link>
         </p>
       </form>

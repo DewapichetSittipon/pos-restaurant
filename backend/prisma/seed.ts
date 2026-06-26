@@ -20,6 +20,7 @@ async function seedShop(opts: {
     data: {
       name: opts.name,
       slug: opts.slug,
+      status: 'active', // ร้าน seed ใช้งานได้ทันที
       address: opts.address,
       phone: opts.phone,
     },

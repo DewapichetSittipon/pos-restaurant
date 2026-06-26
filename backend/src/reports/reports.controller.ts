@@ -8,10 +8,11 @@ import {
 } from '@nestjs/common';
 import { ReportsService } from './reports.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ActiveShopGuard } from '../auth/active-shop.guard';
 import { CurrentShop } from '../auth/current-shop.decorator';
 
 @Controller('reports')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, ActiveShopGuard)
 export class ReportsController {
   constructor(private readonly reports: ReportsService) {}
 

@@ -11,11 +11,12 @@ import {
 import { TablesService } from './tables.service';
 import { CreateTableDto } from './dto/create-table.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ActiveShopGuard } from '../auth/active-shop.guard';
 import { CurrentShop } from '../auth/current-shop.decorator';
 
-// endpoints ฝั่งพนักงาน (ต้องล็อกอิน) — scope ด้วยร้านของ staff
+// endpoints ฝั่งพนักงาน (ต้องล็อกอิน + ร้าน active) — scope ด้วยร้านของ staff
 @Controller('tables')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, ActiveShopGuard)
 export class TablesController {
   constructor(private readonly tables: TablesService) {}
 

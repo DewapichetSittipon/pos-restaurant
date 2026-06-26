@@ -48,7 +48,8 @@ export class AdminService {
   ) {
     const passwordHash = await bcrypt.hash(dto.staffPassword, 10);
     const shop = await tx.shop.create({
-      data: { name: dto.shopName, slug: dto.slug },
+      // admin สร้างเอง = เปิดใช้งานทันที (ไม่ต้องรออนุมัติ)
+      data: { name: dto.shopName, slug: dto.slug, status: 'active' },
     });
     const staff = await tx.staff.create({
       data: { shopId: shop.id, username: dto.staffUsername, passwordHash },
@@ -126,58 +127,27 @@ export class AdminService {
       id: s.id,
       name: s.name,
       slug: s.slug,
+      status: s.status,
+      contactName: s.contactName,
+      phone: s.phone,
       createdAt: s.createdAt,
       staffCount: s._count.staff,
       tableCount: s._count.tables,
     }));
   }
 
-  // คำขอเปิดร้านทั้งหมด — pending ก่อน แล้วเรียงใหม่สุดขึ้นก่อน
-  async listShopRequests() {
-    return this.prisma.shopRequest.findMany({
-      orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
-    });
-  }
-
-  // อนุมัติคำขอ -> สร้างร้าน + staff + ผูก createdShopId ในทรานแซกชันเดียว
-  async approveShopRequest(id: number, dto: CreateShopDto) {
-    const request = await this.prisma.shopRequest.findUnique({ where: { id } });
-    if (!request) {
-      throw new NotFoundException('ไม่พบคำขอ');
+  // อนุมัติร้านที่สมัครเอง -> เปลี่ยนสถานะ pending เป็น active (ปฏิเสธ = ลบร้านผ่าน deleteShop)
+  async approveShop(shopId: number) {
+    const shop = await this.prisma.shop.findUnique({ where: { id: shopId } });
+    if (!shop) {
+      throw new NotFoundException('ไม่พบร้าน');
     }
-    if (request.status !== 'pending') {
-      throw new ConflictException('คำขอนี้ถูกดำเนินการไปแล้ว');
+    if (shop.status === 'active') {
+      throw new ConflictException('ร้านนี้เปิดใช้งานอยู่แล้ว');
     }
-    try {
-      return await this.prisma.$transaction(async (tx) => {
-        const result = await this.createShopAndStaff(tx, dto);
-        await tx.shopRequest.update({
-          where: { id },
-          data: {
-            status: 'approved',
-            createdShopId: result.shop.id,
-            reviewedAt: new Date(),
-          },
-        });
-        return result;
-      });
-    } catch (err) {
-      this.rethrowShopConflict(err);
-    }
-  }
-
-  // ปฏิเสธคำขอ (เก็บเหตุผลไว้ใน adminNote)
-  async rejectShopRequest(id: number, adminNote?: string) {
-    const request = await this.prisma.shopRequest.findUnique({ where: { id } });
-    if (!request) {
-      throw new NotFoundException('ไม่พบคำขอ');
-    }
-    if (request.status !== 'pending') {
-      throw new ConflictException('คำขอนี้ถูกดำเนินการไปแล้ว');
-    }
-    return this.prisma.shopRequest.update({
-      where: { id },
-      data: { status: 'rejected', adminNote, reviewedAt: new Date() },
+    return this.prisma.shop.update({
+      where: { id: shopId },
+      data: { status: 'active' },
     });
   }
 }

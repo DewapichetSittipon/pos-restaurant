@@ -4,6 +4,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import type { ShopStatus } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import type { JwtPayload } from './auth.types';
@@ -17,7 +18,12 @@ export class AuthService {
 
   async login(username: string, password: string): Promise<{
     token: string;
-    staff: { id: number; username: string; shopId: number };
+    staff: {
+      id: number;
+      username: string;
+      shopId: number;
+      shopStatus: ShopStatus;
+    };
   }> {
     const staff = await this.prisma.staff.findUnique({
       where: { username },
@@ -37,6 +43,7 @@ export class AuthService {
         id: staff.id,
         username: staff.username,
         shopId: staff.shopId,
+        shopStatus: staff.shop.status,
       },
     };
   }

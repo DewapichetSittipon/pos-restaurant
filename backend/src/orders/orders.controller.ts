@@ -15,6 +15,7 @@ import { UpdateStatusDto } from './dto/update-status.dto';
 import { CustomerTokenGuard } from '../auth/customer-token.guard';
 import { CurrentBill } from '../auth/current-bill.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ActiveShopGuard } from '../auth/active-shop.guard';
 import { CurrentShop } from '../auth/current-shop.decorator';
 
 @Controller('orders')
@@ -33,14 +34,14 @@ export class OrdersController {
 
   // คิวครัว (queued + cooking ของร้านนี้)
   @Get('active')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, ActiveShopGuard)
   active(@CurrentShop() shopId: number) {
     return this.orders.activeQueue(shopId);
   }
 
   // staff เปลี่ยนสถานะอาหาร
   @Patch(':id/status')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, ActiveShopGuard)
   updateStatus(
     @CurrentShop() shopId: number,
     @Param('id', ParseIntPipe) id: number,
@@ -51,7 +52,7 @@ export class OrdersController {
 
   // ยกเลิก (void) รายการอาหาร
   @Post(':id/void')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, ActiveShopGuard)
   voidItem(
     @CurrentShop() shopId: number,
     @Param('id', ParseIntPipe) id: number,
