@@ -2,13 +2,15 @@ import { useState } from 'react';
 import { ManageTables } from '../components/manage/ManageTables';
 import { ManageCategories } from '../components/manage/ManageCategories';
 import { ManageMenus } from '../components/manage/ManageMenus';
+import { ManageShop } from '../components/manage/ManageShop';
 
-type Tab = 'tables' | 'categories' | 'menus';
+type Tab = 'tables' | 'categories' | 'menus' | 'shop';
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'tables', label: 'โต๊ะ' },
   { key: 'categories', label: 'หมวดหมู่' },
   { key: 'menus', label: 'เมนู' },
+  { key: 'shop', label: 'ข้อมูลร้าน' },
 ];
 
 export function ManagePage() {
@@ -36,6 +38,7 @@ export function ManagePage() {
       {tab === 'tables' && <ManageTables />}
       {tab === 'categories' && <ManageCategories />}
       {tab === 'menus' && <ManageMenus />}
+      {tab === 'shop' && <ManageShop />}
     </div>
   );
 }

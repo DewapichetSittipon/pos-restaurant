@@ -10,6 +10,7 @@ import { MenusModule } from './menus/menus.module';
 import { CategoriesModule } from './categories/categories.module';
 import { ReportsModule } from './reports/reports.module';
 import { AdminModule } from './admin/admin.module';
+import { ShopModule } from './shop/shop.module';
 import { HealthController } from './health/health.controller';
 
 @Module({
@@ -25,6 +26,7 @@ import { HealthController } from './health/health.controller';
     CategoriesModule,
     ReportsModule,
     AdminModule,
+    ShopModule,
   ],
   controllers: [HealthController],
 })

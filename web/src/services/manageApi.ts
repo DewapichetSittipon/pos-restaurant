@@ -3,8 +3,21 @@ import type { Category, TableInfo } from '../type/domain';
 import type {
   CategoryRow,
   CreateMenuInput,
+  ShopInfo,
   UpdateMenuInput,
+  UpdateShopInput,
 } from '../type/manage';
+
+// ----- ข้อมูลร้าน / หัวใบเสร็จ -----
+export async function fetchShop(): Promise<ShopInfo> {
+  const { data } = await api.get<ShopInfo>('/shop');
+  return data;
+}
+
+export async function updateShop(input: UpdateShopInput): Promise<ShopInfo> {
+  const { data } = await api.patch<ShopInfo>('/shop', input);
+  return data;
+}
 
 // ----- โต๊ะ -----
 export async function createTable(tableNumber: string): Promise<TableInfo> {
