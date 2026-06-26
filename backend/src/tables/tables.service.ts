@@ -51,8 +51,8 @@ export class TablesService {
     return { ok: true };
   }
 
-  listTables(shopId: number) {
-    return this.prisma.table.findMany({
+  async listTables(shopId: number) {
+    const tables = await this.prisma.table.findMany({
       where: { shopId },
       orderBy: { id: 'asc' },
       include: {
@@ -60,10 +60,26 @@ export class TablesService {
           where: { status: 'pending' },
           include: {
             serviceRequests: { where: { status: 'pending' } },
+            orderItems: {
+              where: { status: { not: 'voided' } },
+              select: { unitPrice: true, quantity: true },
+            },
           },
         },
       },
     });
+
+    // totalPrice ใน DB เป็น null จนกว่าจะ checkout → คำนวณยอดสดจากรายการที่ยังไม่ถูกยกเลิก
+    return tables.map((table) => ({
+      ...table,
+      bills: table.bills.map(({ orderItems, ...bill }) => ({
+        ...bill,
+        totalPrice: orderItems.reduce(
+          (sum, i) => sum + i.unitPrice * i.quantity,
+          0,
+        ),
+      })),
+    }));
   }
 
   // เปิดโต๊ะ: สร้าง Bill ใหม่ + qr_token — 409 ถ้ามี Bill pending อยู่แล้ว
