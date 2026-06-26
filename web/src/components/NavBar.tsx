@@ -54,6 +54,19 @@ export function NavBar() {
             <NotiDot count={orderCount} />
           </Link>
         )}
+        {showTables && (
+          <Link to="/admin/shift" className={linkClass('/admin/shift')}>
+            กะ/ลิ้นชัก
+          </Link>
+        )}
+        {showTables && (
+          <Link
+            to="/admin/reservations"
+            className={linkClass('/admin/reservations')}
+          >
+            จองโต๊ะ
+          </Link>
+        )}
         {showOwnerOnly && (
           <Link to="/admin/report" className={linkClass('/admin/report')}>
             ยอดขาย

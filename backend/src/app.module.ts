@@ -14,6 +14,10 @@ import { AdminModule } from './admin/admin.module';
 import { SignupModule } from './signup/signup.module';
 import { StaffModule } from './staff/staff.module';
 import { ShopModule } from './shop/shop.module';
+import { ShiftsModule } from './shifts/shifts.module';
+import { ReservationsModule } from './reservations/reservations.module';
+import { MembersModule } from './members/members.module';
+import { AuditModule } from './audit/audit.module';
 import { StorageModule } from './uploads/storage.module';
 import { HealthController } from './health/health.controller';
 
@@ -35,6 +39,10 @@ import { HealthController } from './health/health.controller';
     SignupModule,
     StaffModule,
     ShopModule,
+    ShiftsModule,
+    ReservationsModule,
+    MembersModule,
+    AuditModule,
     StorageModule,
   ],
   controllers: [HealthController],

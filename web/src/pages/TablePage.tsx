@@ -63,6 +63,19 @@ function TableContent({ tableId, token }: TableContentProps) {
 
   const orderCount = session?.orderItems.length ?? 0;
 
+  // นับสถานะรายการ (ไม่นับที่ยกเลิก) สำหรับแถบติดตามสด
+  const statusCounts = useMemo(() => {
+    const c = { queued: 0, cooking: 0, served: 0 };
+    for (const it of session?.orderItems ?? []) {
+      if (it.status === 'queued') c.queued += it.quantity;
+      else if (it.status === 'cooking') c.cooking += it.quantity;
+      else if (it.status === 'served') c.served += it.quantity;
+    }
+    return c;
+  }, [session?.orderItems]);
+  const hasActiveOrders =
+    statusCounts.queued + statusCounts.cooking + statusCounts.served > 0;
+
   const activeId = selectedCat ?? categories[0]?.id ?? 0;
   const activeMenus = useMemo<MenuItem[]>(
     () => categories.find((c) => c.id === activeId)?.menus ?? [],
@@ -160,6 +173,34 @@ function TableContent({ tableId, token }: TableContentProps) {
         <div className="sticky top-2 z-20 mb-3 rounded-xl bg-slate-900 px-4 py-2.5 text-center text-sm font-medium text-white shadow-lg">
           {banner}
         </div>
+      )}
+
+      {/* แถบติดตามสถานะอาหารแบบสด (อัปเดตผ่าน socket) */}
+      {hasActiveOrders && (
+        <button
+          type="button"
+          onClick={() => setOrderOpen(true)}
+          className="mb-3 flex w-full items-center justify-between gap-2 rounded-xl bg-white px-4 py-3 text-sm shadow-sm"
+        >
+          <span className="font-semibold text-slate-600">สถานะอาหาร</span>
+          <span className="flex items-center gap-2">
+            {statusCounts.queued > 0 && (
+              <span className="rounded-full bg-slate-200 px-2.5 py-0.5 font-medium text-slate-700">
+                รอคิว {statusCounts.queued}
+              </span>
+            )}
+            {statusCounts.cooking > 0 && (
+              <span className="rounded-full bg-amber-200 px-2.5 py-0.5 font-medium text-amber-800">
+                กำลังทำ {statusCounts.cooking}
+              </span>
+            )}
+            {statusCounts.served > 0 && (
+              <span className="rounded-full bg-emerald-200 px-2.5 py-0.5 font-medium text-emerald-800">
+                เสิร์ฟแล้ว {statusCounts.served}
+              </span>
+            )}
+          </span>
+        </button>
       )}
 
       {!menuLoading && categories.length > 0 && (

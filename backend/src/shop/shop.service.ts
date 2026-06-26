@@ -10,6 +10,10 @@ const SHOP_SELECT = {
   phone: true,
   taxId: true,
   promptpayId: true,
+  vatRate: true,
+  vatInclusive: true,
+  serviceChargeRate: true,
+  loyaltyEarnRate: true,
 } as const;
 
 @Injectable()
@@ -41,6 +45,11 @@ export class ShopService {
         phone: clean(dto.phone),
         taxId: clean(dto.taxId),
         promptpayId: clean(dto.promptpayId),
+        // ไม่ส่งมา = ไม่แก้ (undefined) — Prisma ข้ามให้
+        vatRate: dto.vatRate,
+        vatInclusive: dto.vatInclusive,
+        serviceChargeRate: dto.serviceChargeRate,
+        loyaltyEarnRate: dto.loyaltyEarnRate,
       },
       select: SHOP_SELECT,
     });

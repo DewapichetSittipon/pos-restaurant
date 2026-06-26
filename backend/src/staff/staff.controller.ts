@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { StaffService } from './staff.service';
 import { CreateStaffDto, SetPasswordDto } from './dto/create-staff.dto';
+import { AuditService } from '../audit/audit.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ActiveShopGuard } from '../auth/active-shop.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -24,7 +25,10 @@ import type { JwtPayload } from '../auth/auth.types';
 @UseGuards(JwtAuthGuard, ActiveShopGuard, RolesGuard)
 @Roles('OWNER')
 export class StaffController {
-  constructor(private readonly staff: StaffService) {}
+  constructor(
+    private readonly staff: StaffService,
+    private readonly audit: AuditService,
+  ) {}
 
   @Get()
   list(@CurrentShop() shopId: number) {
@@ -32,25 +36,56 @@ export class StaffController {
   }
 
   @Post()
-  create(@CurrentShop() shopId: number, @Body() dto: CreateStaffDto) {
-    return this.staff.createStaff(shopId, dto.username, dto.password, dto.role);
+  async create(
+    @CurrentShop() shopId: number,
+    @CurrentStaff() current: JwtPayload,
+    @Body() dto: CreateStaffDto,
+  ) {
+    const created = await this.staff.createStaff(
+      shopId,
+      dto.username,
+      dto.password,
+      dto.role,
+    );
+    await this.audit.log(
+      shopId,
+      { id: current.sub, username: current.username },
+      'staff.create',
+      `เพิ่มพนักงาน ${dto.username} (${dto.role})`,
+    );
+    return created;
   }
 
   @Patch(':id/password')
-  setPassword(
+  async setPassword(
     @CurrentShop() shopId: number,
+    @CurrentStaff() current: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: SetPasswordDto,
   ) {
-    return this.staff.setPassword(shopId, id, dto.password);
+    const result = await this.staff.setPassword(shopId, id, dto.password);
+    await this.audit.log(
+      shopId,
+      { id: current.sub, username: current.username },
+      'staff.password',
+      `รีเซ็ตรหัสผ่านพนักงาน #${id}`,
+    );
+    return result;
   }
 
   @Delete(':id')
-  remove(
+  async remove(
     @CurrentShop() shopId: number,
     @CurrentStaff() current: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
   ) {
-    return this.staff.deleteStaff(shopId, id, current.sub);
+    const result = await this.staff.deleteStaff(shopId, id, current.sub);
+    await this.audit.log(
+      shopId,
+      { id: current.sub, username: current.username },
+      'staff.delete',
+      `ลบพนักงาน #${id}`,
+    );
+    return result;
   }
 }

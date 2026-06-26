@@ -61,8 +61,20 @@ export async function printReceipt(bill: CheckoutResult): Promise<void> {
   const lines = aggregate(bill.orderItems);
   const subtotal = bill.subtotal ?? lines.reduce((s, l) => s + l.amount, 0);
   const discount = bill.discount ?? 0;
+  const serviceCharge = bill.serviceCharge ?? 0;
+  const vatAmount = bill.vatAmount ?? 0;
+  const vatRate = bill.vatRate ?? 0;
+  const serviceChargeRate = bill.serviceChargeRate ?? 0;
+  const vatInclusive = bill.vatInclusive ?? true;
+  const pointsRedeemed = bill.pointsRedeemed ?? 0;
+  const pointsEarned = bill.pointsEarned ?? 0;
   const total = bill.totalPrice ?? subtotal - discount;
   const paidAt = bill.paidAt ?? new Date().toISOString();
+
+  const pct = (bp: number): string => (bp / 100).toLocaleString('th-TH');
+  // โชว์บรรทัดยอดรวม(ก่อนปรับ) เมื่อมีส่วนลด/แลกแต้ม/เซอร์วิส/VAT อย่างใดอย่างหนึ่ง
+  const hasAdjustments =
+    discount > 0 || pointsRedeemed > 0 || serviceCharge > 0 || vatRate > 0;
 
   const methodLabel =
     bill.paymentMethod === 'cash'
@@ -75,11 +87,22 @@ export async function printReceipt(bill: CheckoutResult): Promise<void> {
       ? bill.receivedAmount - total
       : null;
 
-  // บรรทัดสรุปยอด: โชว์ส่วนลด/รับเงิน/ทอนเฉพาะเมื่อมี
+  // บรรทัดสรุปยอด: โชว์ยอดรวม/ส่วนลด/เซอร์วิส/VAT/รับเงิน/ทอนเฉพาะเมื่อมี
   const summary = [
+    hasAdjustments
+      ? `<div class="meta"><span>ยอดรวม</span><span>${baht(subtotal)}</span></div>`
+      : '',
     discount > 0
-      ? `<div class="meta"><span>ยอดรวม</span><span>${baht(subtotal)}</span></div>
-         <div class="meta"><span>ส่วนลด</span><span>-${baht(discount)}</span></div>`
+      ? `<div class="meta"><span>ส่วนลด</span><span>-${baht(discount)}</span></div>`
+      : '',
+    pointsRedeemed > 0
+      ? `<div class="meta"><span>แลกแต้ม ${pointsRedeemed} แต้ม</span><span>-${baht(pointsRedeemed * 100)}</span></div>`
+      : '',
+    serviceCharge > 0
+      ? `<div class="meta"><span>เซอร์วิสชาร์จ ${pct(serviceChargeRate)}%</span><span>${baht(serviceCharge)}</span></div>`
+      : '',
+    vatRate > 0
+      ? `<div class="meta"><span>VAT ${pct(vatRate)}%${vatInclusive ? ' (รวมแล้ว)' : ''}</span><span>${baht(vatAmount)}</span></div>`
       : '',
     methodLabel
       ? `<div class="meta"><span>ชำระโดย</span><span>${methodLabel}</span></div>`
@@ -91,6 +114,14 @@ export async function printReceipt(bill: CheckoutResult): Promise<void> {
       ? `<div class="meta"><span>เงินทอน</span><span>${baht(change)}</span></div>`
       : '',
   ].join('');
+
+  // บล็อกแต้มสมาชิก (ถ้ามี) — ได้รับ + คงเหลือ
+  const pointsBlock =
+    pointsEarned > 0 || bill.member
+      ? `<div class="hr"></div>
+         ${pointsEarned > 0 ? `<div class="meta"><span>ได้รับแต้ม</span><span>+${pointsEarned}</span></div>` : ''}
+         ${bill.member ? `<div class="meta"><span>แต้มคงเหลือ</span><span>${bill.member.pointsBalance}</span></div>` : ''}`
+      : '';
 
   // QR PromptPay — เฉพาะจ่ายแบบโอน + ร้านตั้ง PromptPay ไว้
   let qrBlock = '';
@@ -205,6 +236,8 @@ export async function printReceipt(bill: CheckoutResult): Promise<void> {
       <span>รวมทั้งสิ้น</span>
       <span>${baht(total)} บาท</span>
     </div>
+
+    ${pointsBlock}
 
     ${qrBlock}
 

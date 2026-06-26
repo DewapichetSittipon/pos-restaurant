@@ -11,6 +11,15 @@ export interface OpenTableResult extends Bill {
   customerUrl: string;
 }
 
+// สมาชิก/แต้มสะสม
+export interface Member {
+  id: number;
+  phone: string;
+  name: string | null;
+  points: number;
+  createdAt: string;
+}
+
 // ผลลัพธ์ตอนเช็คบิล — มีข้อมูลครบสำหรับพิมพ์ใบเสร็จ
 export interface CheckoutResult extends Bill {
   subtotal: number; // สตางค์ ก่อนหักส่วนลด
@@ -23,6 +32,12 @@ export interface CheckoutResult extends Bill {
     promptpayId: string | null;
   };
   orderItems: OrderItem[];
+  member: {
+    name: string | null;
+    pointsBalance: number;
+    pointsEarned: number;
+    pointsRedeemed: number;
+  } | null;
 }
 
 // payload ตอนเช็คบิล
@@ -30,6 +45,8 @@ export interface CheckoutPayload {
   discount?: number; // สตางค์
   paymentMethod: 'cash' | 'transfer';
   receivedAmount?: number; // สตางค์ (เงินสด)
+  memberId?: number; // สมาชิกที่ผูกบิล
+  redeemPoints?: number; // แต้มที่ขอแลก
 }
 
 // บทบาทพนักงานในร้าน (ตรงกับ enum StaffRole ฝั่ง backend)
@@ -72,6 +89,7 @@ export interface EodBillRow {
   tableNumber: string;
   totalSatang: number;
   paidAt: string;
+  status: 'paid' | 'refunded';
 }
 
 export interface EodReport {
@@ -79,7 +97,65 @@ export interface EodReport {
   timezone: string;
   billCount: number;
   totalSatang: number;
+  vatSatang: number;
+  serviceChargeSatang: number;
+  cashSatang: number;
+  transferSatang: number;
+  refundedCount: number;
+  refundedSatang: number;
   bills: EodBillRow[];
+}
+
+// ----- กะ/เงินลิ้นชัก -----
+export interface ShiftSummary {
+  billCount: number;
+  cashSatang: number;
+  transferSatang: number;
+  totalSatang: number;
+  expectedCashSatang: number; // เงินสดที่ควรมีในลิ้นชัก
+  countedCashSatang: number | null; // ที่นับได้จริง (กะที่ปิดแล้ว)
+  diffSatang: number | null; // ผลต่าง (+เกิน / -ขาด)
+}
+
+export interface Shift {
+  id: number;
+  shopId: number;
+  status: 'open' | 'closed';
+  openingCash: number; // สตางค์ เงินทอนตั้งต้น
+  openedByStaffId: number;
+  openedByName: string;
+  openedAt: string;
+  closingCashCounted: number | null;
+  closedByStaffId: number | null;
+  closedByName: string | null;
+  closedAt: string | null;
+  note: string | null;
+  summary: ShiftSummary;
+}
+
+export interface HourlyRow {
+  hour: number; // 0–23
+  totalSatang: number;
+  billCount: number;
+}
+
+export interface HourlyReport {
+  date: string;
+  hours: HourlyRow[];
+}
+
+export interface RangeDayRow {
+  date: string;
+  totalSatang: number;
+  billCount: number;
+}
+
+export interface RangeReport {
+  from: string;
+  to: string;
+  totalSatang: number;
+  billCount: number;
+  days: RangeDayRow[];
 }
 
 export interface TopMenuRow {
@@ -126,7 +202,36 @@ export interface BillDetail {
   tableNumber: string;
   paidAt: string;
   totalSatang: number;
+  status: 'paid' | 'refunded';
+  refundReason: string | null;
+  refundedAt: string | null;
+  refundedByName: string | null;
   categories: BillDetailCategory[];
+}
+
+// ----- การจองโต๊ะ -----
+export type ReservationStatus = 'booked' | 'seated' | 'cancelled';
+
+export interface Reservation {
+  id: number;
+  customerName: string;
+  phone: string | null;
+  partySize: number;
+  reservedAt: string;
+  tableId: number | null;
+  table: { id: number; tableNumber: string } | null;
+  note: string | null;
+  status: ReservationStatus;
+  createdAt: string;
+}
+
+export interface CreateReservationInput {
+  customerName: string;
+  phone?: string;
+  partySize: number;
+  reservedAt: string; // ISO
+  tableId?: number;
+  note?: string;
 }
 
 export type ToastKind = 'info' | 'success' | 'error';

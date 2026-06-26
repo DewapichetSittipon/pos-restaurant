@@ -4,6 +4,7 @@ import {
   addStaffOrder,
   fetchTableBill,
   mergeBill,
+  splitBill,
   transferBill,
 } from '../services/staffApi';
 import { useToastStore } from '../store/toastStore';
@@ -20,6 +21,7 @@ interface TableBillModalProps {
   onClose: () => void;
   onTransferred: () => void;
   onMerged: () => void;
+  onSplit: () => void;
 }
 
 export function TableBillModal({
@@ -30,6 +32,7 @@ export function TableBillModal({
   onClose,
   onTransferred,
   onMerged,
+  onSplit,
 }: TableBillModalProps) {
   const push = useToastStore((s) => s.push);
   const [bill, setBill] = useState<TableBill | null>(null);
@@ -43,6 +46,40 @@ export function TableBillModal({
   const [transferring, setTransferring] = useState(false);
   const [showMerge, setShowMerge] = useState(false);
   const [merging, setMerging] = useState(false);
+  const [showSplit, setShowSplit] = useState(false);
+  const [splitting, setSplitting] = useState(false);
+  const [splitIds, setSplitIds] = useState<Set<number>>(new Set());
+
+  // รายการที่แยกได้ (ไม่นับที่ยกเลิก)
+  const splittable = useMemo(
+    () => (bill?.orderItems ?? []).filter((i) => i.status !== 'voided'),
+    [bill],
+  );
+
+  function toggleSplitId(id: number): void {
+    setSplitIds((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function handleSplit(toTableId: number): Promise<void> {
+    if (splitIds.size === 0) {
+      push('เลือกรายการที่จะแยกก่อน', 'error');
+      return;
+    }
+    setSplitting(true);
+    try {
+      await splitBill(tableId, toTableId, [...splitIds]);
+      push('แยกบิลแล้ว', 'success');
+      onSplit();
+    } catch {
+      push('แยกบิลไม่สำเร็จ (เหลืออย่างน้อย 1 รายการที่โต๊ะเดิม)', 'error');
+      setSplitting(false);
+    }
+  }
 
   async function handleTransfer(toTableId: number): Promise<void> {
     setTransferring(true);
@@ -139,6 +176,7 @@ export function TableBillModal({
               onClick={() => {
                 setShowMerge((v) => !v);
                 setShowTransfer(false);
+                setShowSplit(false);
               }}
               className="text-sm font-medium text-indigo-600"
             >
@@ -147,8 +185,20 @@ export function TableBillModal({
             <button
               type="button"
               onClick={() => {
+                setShowSplit((v) => !v);
+                setShowMerge(false);
+                setShowTransfer(false);
+              }}
+              className="text-sm font-medium text-indigo-600"
+            >
+              แยกบิล
+            </button>
+            <button
+              type="button"
+              onClick={() => {
                 setShowTransfer((v) => !v);
                 setShowMerge(false);
+                setShowSplit(false);
               }}
               className="text-sm font-medium text-indigo-600"
             >
@@ -207,6 +257,60 @@ export function TableBillModal({
                     onClick={() => handleTransfer(t.id)}
                     disabled={transferring}
                     className="rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-indigo-700 ring-1 ring-indigo-200 disabled:opacity-50"
+                  >
+                    โต๊ะ {t.tableNumber}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* แยกบิล: เลือกรายการ → ส่งไปโต๊ะว่าง เปิดเป็นบิลใหม่ */}
+        {showSplit && (
+          <div className="border-b border-slate-200 bg-emerald-50 px-5 py-3">
+            <p className="mb-2 text-sm font-medium text-slate-600">
+              เลือกรายการที่จะแยกออกไปบิลใหม่:
+            </p>
+            {splittable.length === 0 ? (
+              <p className="text-sm text-slate-400">ยังไม่มีรายการ</p>
+            ) : (
+              <ul className="mb-3 max-h-40 space-y-1 overflow-y-auto">
+                {splittable.map((it) => (
+                  <li key={it.id}>
+                    <label className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={splitIds.has(it.id)}
+                        onChange={() => toggleSplitId(it.id)}
+                        className="h-4 w-4"
+                      />
+                      <span className="flex-1 truncate">
+                        {it.itemName}
+                        <span className="ml-1 text-slate-400">×{it.quantity}</span>
+                      </span>
+                      <span className="text-slate-500">
+                        {formatBaht(it.unitPrice * it.quantity)}
+                      </span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="mb-2 text-sm font-medium text-slate-600">
+              แยกไปโต๊ะว่าง ({splitIds.size} รายการ):
+            </p>
+            {vacantTables.length === 0 ? (
+              <p className="text-sm text-slate-400">ไม่มีโต๊ะว่าง</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {vacantTables.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => handleSplit(t.id)}
+                    disabled={splitting || splitIds.size === 0}
+                    className="rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-emerald-700 ring-1 ring-emerald-200 disabled:opacity-50"
                   >
                     โต๊ะ {t.tableNumber}
                   </button>

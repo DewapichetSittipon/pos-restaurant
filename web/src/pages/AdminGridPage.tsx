@@ -41,16 +41,31 @@ export function AdminGridPage() {
   const [checkout, setCheckout] = useState<CheckoutTarget | null>(null);
   const [checkingOut, setCheckingOut] = useState(false);
   const [promptpayId, setPromptpayId] = useState<string | null>(null);
+  // อัตรา VAT/เซอร์วิสชาร์จของร้าน (default = ไม่คิด จนกว่าจะโหลดเสร็จ)
+  const [charges, setCharges] = useState({
+    vatRate: 0,
+    vatInclusive: true,
+    serviceChargeRate: 0,
+  });
+  const [loyaltyEarnRate, setLoyaltyEarnRate] = useState(0);
   const [billModal, setBillModal] = useState<{
     tableId: number;
     tableNumber: string;
   } | null>(null);
   const push = useToastStore((s) => s.push);
 
-  // โหลด PromptPay ของร้านครั้งเดียว (ใช้สร้าง QR ตอนเช็คบิลแบบโอน)
+  // โหลดตั้งค่าร้านครั้งเดียว (PromptPay + อัตรา VAT/เซอร์วิสชาร์จ ใช้ตอนเช็คบิล)
   useEffect(() => {
     fetchShop()
-      .then((s) => setPromptpayId(s.promptpayId))
+      .then((s) => {
+        setPromptpayId(s.promptpayId);
+        setCharges({
+          vatRate: s.vatRate,
+          vatInclusive: s.vatInclusive,
+          serviceChargeRate: s.serviceChargeRate,
+        });
+        setLoyaltyEarnRate(s.loyaltyEarnRate);
+      })
       .catch(() => undefined);
   }, []);
 
@@ -162,6 +177,8 @@ export function AdminGridPage() {
         <CheckoutConfirmModal
           tableNumber={checkout.tableNumber}
           subtotal={checkout.total}
+          charges={charges}
+          loyaltyEarnRate={loyaltyEarnRate}
           promptpayId={promptpayId}
           busy={checkingOut}
           onConfirm={confirmCheckout}
@@ -188,6 +205,10 @@ export function AdminGridPage() {
             reload();
           }}
           onMerged={() => {
+            setBillModal(null);
+            reload();
+          }}
+          onSplit={() => {
             setBillModal(null);
             reload();
           }}

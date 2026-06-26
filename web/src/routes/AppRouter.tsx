@@ -4,6 +4,8 @@ import { LoginPage } from '../pages/LoginPage';
 import { AdminGridPage } from '../pages/AdminGridPage';
 import { KitchenPage } from '../pages/KitchenPage';
 import { EodReportPage } from '../pages/EodReportPage';
+import { ShiftPage } from '../pages/ShiftPage';
+import { ReservationPage } from '../pages/ReservationPage';
 import { ManagePage } from '../pages/ManagePage';
 import { SignupPage } from '../pages/SignupPage';
 import { StaffLayout } from '../components/StaffLayout';
@@ -50,6 +52,22 @@ export function AppRouter() {
             element={
               <ProtectedRoute allowedRoles={['OWNER']}>
                 <EodReportPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/shift"
+            element={
+              <ProtectedRoute allowedRoles={['OWNER', 'WAITER']}>
+                <ShiftPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/reservations"
+            element={
+              <ProtectedRoute allowedRoles={['OWNER', 'WAITER']}>
+                <ReservationPage />
               </ProtectedRoute>
             }
           />

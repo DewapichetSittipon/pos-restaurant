@@ -1,11 +1,18 @@
-import { useEffect, useState } from 'react';
-import { fetchEod, fetchPrepTimes, fetchTopMenus } from '../services/staffApi';
+import { useCallback, useEffect, useState } from 'react';
+import {
+  fetchEod,
+  fetchHourly,
+  fetchPrepTimes,
+  fetchTopMenus,
+} from '../services/staffApi';
 import { useToastStore } from '../store/toastStore';
 import { formatBaht } from '../utils/money';
 import { bangkokToday } from '../utils/datetime';
 import { BillDetailModal } from '../components/BillDetailModal';
+import { RangeReportSection } from '../components/RangeReportSection';
 import type {
   EodReport,
+  HourlyReport,
   PrepTimesReport,
   TopMenusReport,
 } from '../type/staff';
@@ -23,21 +30,30 @@ export function EodReportPage() {
   const [report, setReport] = useState<EodReport | null>(null);
   const [topMenus, setTopMenus] = useState<TopMenusReport | null>(null);
   const [prepTimes, setPrepTimes] = useState<PrepTimesReport | null>(null);
+  const [hourly, setHourly] = useState<HourlyReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedBillId, setSelectedBillId] = useState<number | null>(null);
   const push = useToastStore((s) => s.push);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     setLoading(true);
-    Promise.all([fetchEod(date), fetchTopMenus(date), fetchPrepTimes(date)])
-      .then(([eod, top, prep]) => {
+    Promise.all([
+      fetchEod(date),
+      fetchTopMenus(date),
+      fetchPrepTimes(date),
+      fetchHourly(date),
+    ])
+      .then(([eod, top, prep, hrs]) => {
         setReport(eod);
         setTopMenus(top);
         setPrepTimes(prep);
+        setHourly(hrs);
       })
       .catch(() => push('โหลดรายงานไม่สำเร็จ', 'error'))
       .finally(() => setLoading(false));
   }, [date, push]);
+
+  useEffect(() => load(), [load]);
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6">
@@ -64,6 +80,22 @@ export function EodReportPage() {
         </div>
       </div>
 
+      {/* แยกตามวิธีชำระ + ภาษี/เซอร์วิส */}
+      {report && report.billCount > 0 && (
+        <div className="mb-6 grid grid-cols-2 gap-3 rounded-2xl bg-white p-4 text-sm shadow-sm sm:grid-cols-4">
+          <Stat label="เงินสด" value={formatBaht(report.cashSatang)} />
+          <Stat label="เงินโอน" value={formatBaht(report.transferSatang)} />
+          <Stat label="เซอร์วิสชาร์จ" value={formatBaht(report.serviceChargeSatang)} />
+          <Stat label="VAT" value={formatBaht(report.vatSatang)} />
+          {report.refundedCount > 0 && (
+            <Stat
+              label={`คืนเงิน (${report.refundedCount})`}
+              value={`-${formatBaht(report.refundedSatang)}`}
+            />
+          )}
+        </div>
+      )}
+
       {/* เมนูขายดี */}
       {topMenus && topMenus.menus.length > 0 && (
         <div className="mb-6 rounded-2xl bg-white p-4 shadow-sm">
@@ -87,6 +119,16 @@ export function EodReportPage() {
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {/* ยอดขายรายชั่วโมง */}
+      {hourly && hourly.hours.some((h) => h.totalSatang > 0) && (
+        <div className="mb-6 rounded-2xl bg-white p-4 shadow-sm">
+          <p className="mb-3 text-sm font-semibold text-slate-500">
+            🕒 ยอดขายรายชั่วโมง
+          </p>
+          <HourlyChart hours={hourly.hours} />
         </div>
       )}
 
@@ -139,7 +181,14 @@ export function EodReportPage() {
                   onClick={() => setSelectedBillId(b.id)}
                   className="cursor-pointer border-t border-slate-100 hover:bg-slate-50"
                 >
-                  <td className="py-2 font-medium text-emerald-600">#{b.id}</td>
+                  <td className="py-2 font-medium text-emerald-600">
+                    #{b.id}
+                    {b.status === 'refunded' && (
+                      <span className="ml-1 rounded bg-rose-100 px-1.5 py-0.5 text-xs font-semibold text-rose-600">
+                        คืนเงิน
+                      </span>
+                    )}
+                  </td>
                   <td className="py-2">{b.tableNumber}</td>
                   <td className="py-2">
                     {new Date(b.paidAt).toLocaleTimeString('th-TH', {
@@ -148,7 +197,11 @@ export function EodReportPage() {
                       minute: '2-digit',
                     })}
                   </td>
-                  <td className="py-2 text-right font-medium">
+                  <td
+                    className={`py-2 text-right font-medium ${
+                      b.status === 'refunded' ? 'text-slate-400 line-through' : ''
+                    }`}
+                  >
                     {formatBaht(b.totalSatang)}
                   </td>
                 </tr>
@@ -160,12 +213,58 @@ export function EodReportPage() {
         )}
       </div>
 
+      {/* ยอดขายช่วงวันที่ (สัปดาห์/เดือน) */}
+      <div className="mt-6">
+        <RangeReportSection />
+      </div>
+
       {selectedBillId !== null && (
         <BillDetailModal
           billId={selectedBillId}
           onClose={() => setSelectedBillId(null)}
+          onRefunded={load}
         />
       )}
+    </div>
+  );
+}
+
+// แท่งยอดขายรายชั่วโมง (CSS bars) — โชว์เฉพาะช่วงที่มีการขาย
+function HourlyChart({
+  hours,
+}: {
+  hours: { hour: number; totalSatang: number; billCount: number }[];
+}) {
+  const max = Math.max(...hours.map((h) => h.totalSatang), 1);
+  // แสดงตั้งแต่ชั่วโมงแรกที่มียอด ถึงชั่วโมงสุดท้ายที่มียอด (ลดช่องว่าง)
+  const active = hours.filter((h) => h.totalSatang > 0);
+  const first = active[0]?.hour ?? 0;
+  const last = active[active.length - 1]?.hour ?? 23;
+  const shown = hours.filter((h) => h.hour >= first && h.hour <= last);
+  return (
+    <div className="flex items-end gap-1 overflow-x-auto pb-1">
+      {shown.map((h) => (
+        <div key={h.hour} className="flex w-8 shrink-0 flex-col items-center gap-1">
+          <span className="text-[10px] text-slate-400">
+            {h.totalSatang > 0 ? formatBaht(h.totalSatang).replace('฿', '') : ''}
+          </span>
+          <div
+            className="w-5 rounded-t bg-emerald-400"
+            style={{ height: `${Math.round((h.totalSatang / max) * 80) + 2}px` }}
+            title={`${h.hour}:00 · ${formatBaht(h.totalSatang)} · ${h.billCount} บิล`}
+          />
+          <span className="text-[10px] text-slate-500">{h.hour}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs text-slate-400">{label}</p>
+      <p className="font-bold text-slate-700">{value}</p>
     </div>
   );
 }

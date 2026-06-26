@@ -1,7 +1,7 @@
 // โดเมนหลัก (ดู CONTEXT.md) — เก็บเงินเป็น integer สตางค์
 
 export type OrderItemStatus = 'queued' | 'cooking' | 'served' | 'voided';
-export type BillStatus = 'pending' | 'paid';
+export type BillStatus = 'pending' | 'paid' | 'refunded';
 export type TableStatus = 'vacant' | 'occupied';
 export type ServiceRequestType = 'call_staff' | 'call_bill';
 export type ServiceRequestStatus = 'pending' | 'acknowledged';
@@ -60,8 +60,16 @@ export interface Bill {
   tableId: number;
   totalPrice: number | null;
   discount: number; // สตางค์ (default 0)
+  serviceCharge: number; // สตางค์ (default 0) — เซอร์วิสชาร์จ snapshot
+  serviceChargeRate: number; // basis points snapshot
+  vatAmount: number; // สตางค์ (default 0) — VAT snapshot
+  vatRate: number; // basis points snapshot
+  vatInclusive: boolean; // โหมด VAT ตอนคิด
   paymentMethod: PaymentMethod | null;
   receivedAmount: number | null; // สตางค์ที่รับมา (เงินสด)
+  memberId: number | null; // สมาชิกที่ผูกบิล
+  pointsEarned: number; // แต้มที่ได้จากบิลนี้
+  pointsRedeemed: number; // แต้มที่ใช้แลกส่วนลด
   status: BillStatus;
   qrToken: string;
   createdAt: string;

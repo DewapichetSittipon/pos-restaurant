@@ -5,9 +5,15 @@ import type {
   BillDetail,
   CheckoutPayload,
   CheckoutResult,
+  CreateReservationInput,
   EodReport,
+  HourlyReport,
+  Member,
   OpenTableResult,
   PrepTimesReport,
+  RangeReport,
+  Reservation,
+  Shift,
   Staff,
   StaffMember,
   StaffRole,
@@ -111,6 +117,15 @@ export async function mergeBill(
   await api.post(`/tables/${toTableId}/merge`, { fromTableId });
 }
 
+// แยกบิล: ย้ายรายการที่เลือกจากโต๊ะนี้ไปเปิดบิลใหม่ที่โต๊ะว่าง
+export async function splitBill(
+  fromTableId: number,
+  toTableId: number,
+  orderItemIds: number[],
+): Promise<void> {
+  await api.post(`/tables/${fromTableId}/split`, { toTableId, orderItemIds });
+}
+
 export async function checkoutTable(
   tableId: number,
   payload: CheckoutPayload,
@@ -169,6 +184,40 @@ export async function fetchPrepTimes(date?: string): Promise<PrepTimesReport> {
   return data;
 }
 
+export async function fetchHourly(date?: string): Promise<HourlyReport> {
+  const { data } = await api.get<HourlyReport>('/reports/hourly', {
+    params: date ? { date } : undefined,
+  });
+  return data;
+}
+
+export async function fetchRange(
+  from: string,
+  to: string,
+): Promise<RangeReport> {
+  const { data } = await api.get<RangeReport>('/reports/range', {
+    params: { from, to },
+  });
+  return data;
+}
+
+// ดาวน์โหลดบิลในช่วงเป็น CSV (trigger ดาวน์โหลดในเบราว์เซอร์)
+export async function downloadSalesCsv(
+  from: string,
+  to: string,
+): Promise<void> {
+  const res = await api.get('/reports/export', {
+    params: { from, to },
+    responseType: 'blob',
+  });
+  const url = URL.createObjectURL(res.data as Blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `sales_${from}_${to}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export async function fetchBillDetail(billId: number): Promise<BillDetail> {
   const { data } = await api.get<BillDetail>(`/reports/bills/${billId}`);
   return data;
@@ -181,5 +230,91 @@ export async function fetchBillReceipt(
   const { data } = await api.get<CheckoutResult>(
     `/reports/bills/${billId}/receipt`,
   );
+  return data;
+}
+
+// คืนเงินบิลที่ชำระแล้ว (OWNER)
+export async function refundBill(
+  billId: number,
+  reason: string,
+  restoreStock: boolean,
+): Promise<void> {
+  await api.post(`/reports/bills/${billId}/refund`, { reason, restoreStock });
+}
+
+// ----- สมาชิก/แต้มสะสม -----
+export async function fetchMembers(): Promise<Member[]> {
+  const { data } = await api.get<Member[]>('/members');
+  return data;
+}
+
+// ค้นหาสมาชิกด้วยเบอร์ — null ถ้าไม่พบ (404)
+export async function lookupMember(phone: string): Promise<Member | null> {
+  try {
+    const { data } = await api.get<Member>('/members', { params: { phone } });
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+export async function createMember(
+  phone: string,
+  name?: string,
+): Promise<Member> {
+  const { data } = await api.post<Member>('/members', { phone, name });
+  return data;
+}
+
+// ----- การจองโต๊ะ -----
+export async function fetchReservations(date?: string): Promise<Reservation[]> {
+  const { data } = await api.get<Reservation[]>('/reservations', {
+    params: date ? { date } : undefined,
+  });
+  return data;
+}
+
+export async function createReservation(
+  input: CreateReservationInput,
+): Promise<Reservation> {
+  const { data } = await api.post<Reservation>('/reservations', input);
+  return data;
+}
+
+export async function updateReservationStatus(
+  id: number,
+  status: 'seated' | 'cancelled',
+): Promise<void> {
+  await api.patch(`/reservations/${id}/status`, { status });
+}
+
+export async function deleteReservation(id: number): Promise<void> {
+  await api.delete(`/reservations/${id}`);
+}
+
+// ----- กะ/เงินลิ้นชัก -----
+export async function fetchCurrentShift(): Promise<Shift | null> {
+  const { data } = await api.get<{ shift: Shift | null }>('/shifts/current');
+  return data.shift;
+}
+
+export async function fetchShifts(): Promise<Shift[]> {
+  const { data } = await api.get<Shift[]>('/shifts');
+  return data;
+}
+
+export async function openShift(openingCash: number): Promise<Shift> {
+  const { data } = await api.post<Shift>('/shifts/open', { openingCash });
+  return data;
+}
+
+export async function closeShift(
+  closingCashCounted: number,
+  note?: string,
+): Promise<Shift> {
+  const { data } = await api.post<Shift>('/shifts/close', {
+    closingCashCounted,
+    note,
+  });
   return data;
 }

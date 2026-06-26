@@ -21,10 +21,16 @@ import { ActiveShopGuard } from '../auth/active-shop.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { CurrentShop } from '../auth/current-shop.decorator';
+import { CurrentStaff } from '../auth/current-staff.decorator';
+import type { JwtPayload } from '../auth/auth.types';
+import { AuditService } from '../audit/audit.service';
 
 @Controller('orders')
 export class OrdersController {
-  constructor(private readonly orders: OrdersService) {}
+  constructor(
+    private readonly orders: OrdersService,
+    private readonly audit: AuditService,
+  ) {}
 
   // ลูกค้าสั่งอาหาร (ใช้ qr_token) — shop มาจาก bill
   @Post()
@@ -68,11 +74,19 @@ export class OrdersController {
   @Post(':id/void')
   @UseGuards(JwtAuthGuard, ActiveShopGuard, RolesGuard)
   @Roles('OWNER', 'WAITER')
-  voidItem(
+  async voidItem(
     @CurrentShop() shopId: number,
+    @CurrentStaff() staff: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: VoidOrderDto,
   ) {
-    return this.orders.voidItem(shopId, id, dto.reason);
+    const item = await this.orders.voidItem(shopId, id, dto.reason);
+    await this.audit.log(
+      shopId,
+      { id: staff.sub, username: staff.username },
+      'order.void',
+      `ยกเลิก ${item.itemName} ×${item.quantity} · ${dto.reason}`,
+    );
+    return item;
   }
 }

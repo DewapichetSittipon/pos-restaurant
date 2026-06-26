@@ -1,6 +1,7 @@
 import { api } from './api';
 import type { Category, TableInfo } from '../type/domain';
 import type {
+  AuditLogEntry,
   CategoryRow,
   CreateMenuInput,
   ShopInfo,
@@ -16,6 +17,12 @@ export async function fetchShop(): Promise<ShopInfo> {
 
 export async function updateShop(input: UpdateShopInput): Promise<ShopInfo> {
   const { data } = await api.patch<ShopInfo>('/shop', input);
+  return data;
+}
+
+// ----- บันทึกการกระทำ (audit log) -----
+export async function fetchAuditLogs(): Promise<AuditLogEntry[]> {
+  const { data } = await api.get<AuditLogEntry[]>('/audit');
   return data;
 }
 

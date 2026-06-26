@@ -14,6 +14,10 @@ interface Form {
   phone: string;
   taxId: string;
   promptpayId: string;
+  vatPercent: string; // อัตรา VAT เป็น % (แปลงเป็น basis points ตอนบันทึก)
+  vatInclusive: boolean;
+  serviceChargePercent: string; // เซอร์วิสชาร์จ เป็น %
+  loyaltyEarnRate: string; // แต้มต่อ 100 บาท
 }
 
 const EMPTY: Form = {
@@ -22,7 +26,22 @@ const EMPTY: Form = {
   phone: '',
   taxId: '',
   promptpayId: '',
+  vatPercent: '',
+  vatInclusive: true,
+  serviceChargePercent: '',
+  loyaltyEarnRate: '',
 };
+
+// % (ข้อความ) -> basis points; ว่าง/ไม่ใช่ตัวเลข = 0
+function percentToBp(percent: string): number {
+  const n = parseFloat(percent);
+  return Number.isFinite(n) && n > 0 ? Math.round(n * 100) : 0;
+}
+
+// basis points -> % (ข้อความ); 0 = ว่าง
+function bpToPercent(bp: number): string {
+  return bp > 0 ? String(bp / 100) : '';
+}
 
 export function ManageShop() {
   const [form, setForm] = useState<Form>(EMPTY);
@@ -41,6 +60,10 @@ export function ManageShop() {
           phone: s.phone ?? '',
           taxId: s.taxId ?? '',
           promptpayId: s.promptpayId ?? '',
+          vatPercent: bpToPercent(s.vatRate),
+          vatInclusive: s.vatInclusive,
+          serviceChargePercent: bpToPercent(s.serviceChargeRate),
+          loyaltyEarnRate: s.loyaltyEarnRate > 0 ? String(s.loyaltyEarnRate) : '',
         }),
       )
       .catch(() => setError('โหลดข้อมูลร้านไม่สำเร็จ'))
@@ -49,7 +72,7 @@ export function ManageShop() {
 
   useEffect(() => reload(), [reload]);
 
-  function set<K extends keyof Form>(key: K, value: string): void {
+  function set<K extends keyof Form>(key: K, value: Form[K]): void {
     setForm((f) => ({ ...f, [key]: value }));
     setSaved(false);
   }
@@ -63,7 +86,17 @@ export function ManageShop() {
     setBusy(true);
     setError(null);
     try {
-      await updateShop(form);
+      await updateShop({
+        name: form.name,
+        address: form.address,
+        phone: form.phone,
+        taxId: form.taxId,
+        promptpayId: form.promptpayId,
+        vatRate: percentToBp(form.vatPercent),
+        vatInclusive: form.vatInclusive,
+        serviceChargeRate: percentToBp(form.serviceChargePercent),
+        loyaltyEarnRate: Math.max(0, parseInt(form.loyaltyEarnRate, 10) || 0),
+      });
       setSaved(true);
     } catch (err) {
       setError(errMsg(err, 'บันทึกไม่สำเร็จ'));
@@ -134,6 +167,74 @@ export function ManageShop() {
             className="w-full rounded-lg border border-slate-300 px-3 py-2.5"
           />
         </Field>
+
+        <div className="border-t border-slate-100 pt-3">
+          <h3 className="text-sm font-bold text-slate-700">ภาษี & เซอร์วิสชาร์จ</h3>
+          <p className="mt-0.5 mb-3 text-xs text-slate-400">
+            กรอกเป็นเปอร์เซ็นต์ — เว้นว่างหรือ 0 = ไม่คิด คิดตอนเช็คบิลและแสดงบนใบเสร็จ
+          </p>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="VAT (%)">
+              <input
+                value={form.vatPercent}
+                onChange={(e) => set('vatPercent', e.target.value)}
+                placeholder="เช่น 7"
+                type="number"
+                inputMode="decimal"
+                min={0}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2.5"
+              />
+            </Field>
+
+            <Field label="เซอร์วิสชาร์จ (%)">
+              <input
+                value={form.serviceChargePercent}
+                onChange={(e) => set('serviceChargePercent', e.target.value)}
+                placeholder="เช่น 10"
+                type="number"
+                inputMode="decimal"
+                min={0}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2.5"
+              />
+            </Field>
+          </div>
+
+          <label className="mt-3 flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={form.vatInclusive}
+              onChange={(e) => set('vatInclusive', e.target.checked)}
+              className="mt-0.5 h-4 w-4"
+            />
+            <span className="text-slate-600">
+              ราคาเมนูรวม VAT แล้ว
+              <span className="block text-xs text-slate-400">
+                เลือก = ใบเสร็จถอด VAT ออกมาแสดง (ยอดรวมไม่เพิ่ม) · ไม่เลือก = บวก VAT
+                เพิ่มจากยอด
+              </span>
+            </span>
+          </label>
+        </div>
+
+        <div className="border-t border-slate-100 pt-3">
+          <h3 className="text-sm font-bold text-slate-700">สมาชิก / แต้มสะสม</h3>
+          <p className="mt-0.5 mb-3 text-xs text-slate-400">
+            แต้มที่ลูกค้าได้รับต่อยอด 100 บาท — เว้นว่างหรือ 0 = ปิดระบบสมาชิก · แลกแต้ม 1
+            แต้ม = 1 บาทเสมอ
+          </p>
+          <Field label="แต้มต่อ 100 บาท">
+            <input
+              value={form.loyaltyEarnRate}
+              onChange={(e) => set('loyaltyEarnRate', e.target.value)}
+              placeholder="เช่น 1"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2.5"
+            />
+          </Field>
+        </div>
 
         {error && <p className="text-sm text-rose-600">{error}</p>}
 

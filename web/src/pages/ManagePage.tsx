@@ -5,8 +5,18 @@ import { ManageMenus } from '../components/manage/ManageMenus';
 import { ManageShop } from '../components/manage/ManageShop';
 import { ManageAccount } from '../components/manage/ManageAccount';
 import { ManageStaff } from '../components/manage/ManageStaff';
+import { ManageMembers } from '../components/manage/ManageMembers';
+import { ManageAudit } from '../components/manage/ManageAudit';
 
-type Tab = 'tables' | 'categories' | 'menus' | 'shop' | 'staff' | 'account';
+type Tab =
+  | 'tables'
+  | 'categories'
+  | 'menus'
+  | 'shop'
+  | 'staff'
+  | 'members'
+  | 'audit'
+  | 'account';
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'tables', label: 'โต๊ะ' },
@@ -14,6 +24,8 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'menus', label: 'เมนู' },
   { key: 'shop', label: 'ข้อมูลร้าน' },
   { key: 'staff', label: 'พนักงาน' },
+  { key: 'members', label: 'สมาชิก' },
+  { key: 'audit', label: 'บันทึก' },
   { key: 'account', label: 'บัญชี' },
 ];
 
@@ -44,6 +56,8 @@ export function ManagePage() {
       {tab === 'menus' && <ManageMenus />}
       {tab === 'shop' && <ManageShop />}
       {tab === 'staff' && <ManageStaff />}
+      {tab === 'members' && <ManageMembers />}
+      {tab === 'audit' && <ManageAudit />}
       {tab === 'account' && <ManageAccount />}
     </div>
   );

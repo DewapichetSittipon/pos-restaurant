@@ -8,6 +8,7 @@ import { Prisma, type Bill, type Table } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsGateway } from '../events/events.gateway';
 import { SocketEvent } from '../events/socket.constants';
+import { computeBillTotals } from '../common/bill-math';
 
 @Injectable()
 export class TablesService {
@@ -178,6 +179,72 @@ export class TablesService {
     });
   }
 
+  // แยกบิล: ย้ายรายการที่เลือกจากบิลโต๊ะต้นทาง ไปเปิดเป็นบิลใหม่ที่โต๊ะว่างปลายทาง
+  // ใช้เคสลูกค้ากลุ่มเดียวกันขอแยกจ่าย — ต้องเหลืออย่างน้อย 1 รายการที่ต้นทาง (ถ้าย้ายหมด = ใช้ย้ายโต๊ะ)
+  async splitBill(
+    shopId: number,
+    fromTableId: number,
+    toTableId: number,
+    orderItemIds: number[],
+  ) {
+    if (fromTableId === toTableId) {
+      throw new ConflictException('เป็นโต๊ะเดียวกัน');
+    }
+    return this.prisma.$transaction(async (tx) => {
+      const fromBill = await tx.bill.findFirst({
+        where: { tableId: fromTableId, shopId, status: 'pending' },
+        include: { orderItems: { where: { status: { not: 'voided' } } } },
+      });
+      if (!fromBill) {
+        throw new NotFoundException('ไม่พบบิลที่เปิดอยู่ของโต๊ะต้นทาง');
+      }
+      const toTable = await tx.table.findFirst({
+        where: { id: toTableId, shopId },
+      });
+      if (!toTable) {
+        throw new NotFoundException('ไม่พบโต๊ะปลายทาง');
+      }
+      const occupied = await tx.bill.findFirst({
+        where: { tableId: toTableId, status: 'pending' },
+      });
+      if (occupied) {
+        throw new ConflictException('โต๊ะปลายทางมีลูกค้าอยู่แล้ว');
+      }
+
+      // เลือกเฉพาะ id ที่อยู่ในบิลต้นทางจริงและยังไม่ถูกยกเลิก
+      const validIds = new Set(fromBill.orderItems.map((i) => i.id));
+      const selected = [...new Set(orderItemIds)].filter((id) =>
+        validIds.has(id),
+      );
+      if (selected.length === 0) {
+        throw new ConflictException('รายการที่เลือกไม่ถูกต้อง');
+      }
+      if (selected.length === fromBill.orderItems.length) {
+        throw new ConflictException('แยกทั้งหมดไม่ได้ — ใช้ย้ายโต๊ะแทน');
+      }
+
+      const qrToken = randomUUID();
+      const newBill = await tx.bill.create({
+        data: { shopId, tableId: toTableId, qrToken, status: 'pending' },
+      });
+      await tx.orderItem.updateMany({
+        where: { id: { in: selected }, billId: fromBill.id },
+        data: { billId: newBill.id },
+      });
+      await tx.table.update({
+        where: { id: toTableId },
+        data: { status: 'occupied' },
+      });
+
+      // ให้ทุกอุปกรณ์ในร้านรีโหลดผัง (ทั้งโต๊ะต้นทาง/ปลายทางอัปเดต)
+      this.events.emitToShop(shopId, SocketEvent.TableOpened, {
+        tableId: toTableId,
+        billId: newBill.id,
+      });
+      return { ok: true, newBillId: newBill.id };
+    });
+  }
+
   // รายการของบิลที่เปิดอยู่ของโต๊ะ (ฝั่งพนักงาน) — scope ด้วย shopId, รวมสถานะแต่ละรายการ
   async getCurrentBill(shopId: number, tableId: number) {
     const bill = await this.prisma.bill.findFirst({
@@ -245,6 +312,8 @@ export class TablesService {
       discount?: number;
       paymentMethod: 'cash' | 'transfer';
       receivedAmount?: number;
+      memberId?: number;
+      redeemPoints?: number;
     },
   ) {
     return this.prisma.$transaction(async (tx) => {
@@ -266,9 +335,60 @@ export class TablesService {
         (sum, i) => sum + i.unitPrice * i.quantity,
         0,
       );
-      // ส่วนลดต้องไม่เกินยอด (กันยอดติดลบ)
-      const discount = Math.min(Math.max(opts.discount ?? 0, 0), subtotal);
-      const total = subtotal - discount;
+
+      // สมาชิก: แลกแต้มเป็นส่วนลด (1 แต้ม = 1 บาท) ก่อนคิดภาษี
+      let member: { id: number; points: number } | null = null;
+      if (opts.memberId != null) {
+        const m = await tx.member.findFirst({
+          where: { id: opts.memberId, shopId },
+          select: { id: true, points: true },
+        });
+        if (!m) throw new NotFoundException('ไม่พบสมาชิก');
+        member = m;
+      }
+
+      const manualDiscount = Math.min(
+        Math.max(opts.discount ?? 0, 0),
+        subtotal,
+      );
+      // แลกแต้มได้ไม่เกิน: แต้มคงเหลือ และ ยอดที่เหลือหลังหักส่วนลดปกติ
+      const maxRedeemByBill = Math.floor((subtotal - manualDiscount) / 100);
+      const redeemPoints = member
+        ? Math.min(
+            Math.max(opts.redeemPoints ?? 0, 0),
+            member.points,
+            maxRedeemByBill,
+          )
+        : 0;
+      const redeemSatang = redeemPoints * 100;
+
+      // คิดเซอร์วิสชาร์จ/VAT ตามตั้งค่าร้าน (snapshot อัตราลงบิลกันยอดเพี้ยนภายหลัง)
+      const charges = {
+        vatRate: bill.shop.vatRate,
+        vatInclusive: bill.shop.vatInclusive,
+        serviceChargeRate: bill.shop.serviceChargeRate,
+      };
+      const totals = computeBillTotals(
+        subtotal,
+        manualDiscount + redeemSatang,
+        charges,
+      );
+      const { serviceCharge, vatAmount, total } = totals;
+      // เก็บส่วนลดปกติแยกจากแต้มที่แลก (ใบเสร็จโชว์คนละบรรทัด)
+      const discount = manualDiscount;
+
+      // ได้แต้มจากยอดสุทธิ: earnRate แต้มต่อ 100 บาท (เฉพาะมีสมาชิก + เปิดระบบ)
+      const earnRate = bill.shop.loyaltyEarnRate;
+      const pointsEarned =
+        member && earnRate > 0
+          ? Math.floor(total / 10000) * earnRate
+          : 0;
+
+      // ผูกบิลกับกะที่เปิดอยู่ (ถ้ามี) เพื่อกระทบยอดเงินสดตอนปิดกะ
+      const openShift = await tx.shift.findFirst({
+        where: { shopId, status: 'open' },
+        select: { id: true },
+      });
 
       const paid = await tx.bill.update({
         where: { id: bill.id },
@@ -277,14 +397,34 @@ export class TablesService {
           paidAt: new Date(),
           totalPrice: total,
           discount,
+          serviceCharge,
+          serviceChargeRate: charges.serviceChargeRate,
+          vatAmount,
+          vatRate: charges.vatRate,
+          vatInclusive: charges.vatInclusive,
           paymentMethod: opts.paymentMethod,
           receivedAmount: opts.receivedAmount ?? null,
+          shiftId: openShift?.id ?? null,
+          memberId: member?.id ?? null,
+          pointsRedeemed: redeemPoints,
+          pointsEarned,
         },
       });
       await tx.table.update({
         where: { id: tableId },
         data: { status: 'vacant' },
       });
+
+      // อัปเดตแต้มสมาชิก (หักที่แลก + บวกที่ได้)
+      let memberAfter: { name: string | null; points: number } | null = null;
+      if (member) {
+        const updated = await tx.member.update({
+          where: { id: member.id },
+          data: { points: member.points - redeemPoints + pointsEarned },
+          select: { name: true, points: true },
+        });
+        memberAfter = updated;
+      }
 
       this.events.emitToTable(bill.id, SocketEvent.BillClosed, {
         billId: bill.id,
@@ -309,6 +449,14 @@ export class TablesService {
           promptpayId: bill.shop.promptpayId,
         },
         orderItems: billedItems,
+        member: memberAfter
+          ? {
+              name: memberAfter.name,
+              pointsBalance: memberAfter.points,
+              pointsEarned,
+              pointsRedeemed: redeemPoints,
+            }
+          : null,
       };
     });
   }
