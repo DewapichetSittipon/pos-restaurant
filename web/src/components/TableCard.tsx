@@ -7,7 +7,7 @@ interface TableCardProps {
   onCheckout: (tableId: number) => void;
   onAck: (serviceRequestId: number) => void;
   onShowQr: (table: TableGridItem) => void;
-  onAddItems: (table: TableGridItem) => void;
+  onOpenBill: (table: TableGridItem) => void;
 }
 
 const SR_LABEL: Record<string, string> = {
@@ -34,7 +34,7 @@ export function TableCard({
   onCheckout,
   onAck,
   onShowQr,
-  onAddItems,
+  onOpenBill,
 }: TableCardProps) {
   const bill = table.bills[0]; // มีได้ทีละหนึ่งบิล pending
   const requests = bill?.serviceRequests ?? [];
@@ -121,10 +121,10 @@ export function TableCard({
         <div className="flex w-full flex-col gap-2">
           <button
             type="button"
-            onClick={() => onAddItems(table)}
+            onClick={() => onOpenBill(table)}
             className="w-full rounded-lg bg-indigo-600 py-2 text-sm font-semibold text-white"
           >
-            + เพิ่มรายการ
+            ดูบิล · สั่งเพิ่ม
           </button>
           <div className="flex w-full gap-2">
             <button

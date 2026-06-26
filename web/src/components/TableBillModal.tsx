@@ -1,34 +1,44 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { fetchCatalog } from '../services/manageApi';
-import { addStaffOrder } from '../services/staffApi';
+import { addStaffOrder, fetchTableBill } from '../services/staffApi';
+import { useToastStore } from '../store/toastStore';
 import { formatBaht } from '../utils/money';
 import type { Category } from '../type/domain';
+import type { TableBill } from '../type/staff';
+import { OrderHistory } from './OrderHistory';
 
-interface AddItemsModalProps {
+interface TableBillModalProps {
   tableId: number;
   tableNumber: string;
   onClose: () => void;
-  onAdded: (count: number) => void; // หลังเพิ่มสำเร็จ (count = จำนวนรายการ)
 }
 
-export function AddItemsModal({
+export function TableBillModal({
   tableId,
   tableNumber,
   onClose,
-  onAdded,
-}: AddItemsModalProps) {
+}: TableBillModalProps) {
+  const push = useToastStore((s) => s.push);
+  const [bill, setBill] = useState<TableBill | null>(null);
+  const [loadingBill, setLoadingBill] = useState(true);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
   const [qty, setQty] = useState<Record<number, number>>({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const loadBill = useCallback(() => {
+    return fetchTableBill(tableId)
+      .then(setBill)
+      .catch(() => setError('โหลดบิลไม่สำเร็จ'))
+      .finally(() => setLoadingBill(false));
+  }, [tableId]);
+
   useEffect(() => {
+    loadBill();
     fetchCatalog()
       .then(setCategories)
-      .catch(() => setError('โหลดเมนูไม่สำเร็จ'))
-      .finally(() => setLoading(false));
-  }, []);
+      .catch(() => setError('โหลดเมนูไม่สำเร็จ'));
+  }, [loadBill]);
 
   function bump(menuId: number, delta: number): void {
     setQty((q) => {
@@ -50,7 +60,7 @@ export function AddItemsModal({
     return { totalQty: count, totalSatang: satang };
   }, [qty, categories]);
 
-  async function handleSubmit(): Promise<void> {
+  async function handleAdd(): Promise<void> {
     const items = Object.entries(qty)
       .filter(([, n]) => n > 0)
       .map(([menuId, n]) => ({ menuId: Number(menuId), quantity: n }));
@@ -59,9 +69,12 @@ export function AddItemsModal({
     setError(null);
     try {
       await addStaffOrder(tableId, items);
-      onAdded(totalQty);
+      push(`เพิ่ม ${totalQty} รายการแล้ว`, 'success');
+      setQty({});
+      await loadBill(); // รีเฟรชรายการ "สั่งแล้ว" ให้เห็นทันที (modal ยังเปิดอยู่)
     } catch {
       setError('เพิ่มรายการไม่สำเร็จ (เมนูอาจหมด/งดขาย)');
+    } finally {
       setSubmitting(false);
     }
   }
@@ -69,9 +82,9 @@ export function AddItemsModal({
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative flex max-h-[85vh] w-full max-w-md flex-col rounded-t-2xl bg-white shadow-xl sm:rounded-2xl">
+      <div className="relative flex max-h-[88vh] w-full max-w-md flex-col rounded-t-2xl bg-white shadow-xl sm:rounded-2xl">
         <header className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-          <h3 className="text-base font-bold">เพิ่มรายการ · โต๊ะ {tableNumber}</h3>
+          <h3 className="text-base font-bold">บิลโต๊ะ {tableNumber}</h3>
           <button
             type="button"
             onClick={onClose}
@@ -81,22 +94,41 @@ export function AddItemsModal({
           </button>
         </header>
 
-        <div className="flex-1 overflow-y-auto px-5 py-3">
-          {loading ? (
-            <p className="py-8 text-center text-sm text-slate-400">
-              กำลังโหลดเมนู...
-            </p>
-          ) : (
-            categories.map((cat) => {
+        <div className="flex-1 space-y-5 overflow-y-auto bg-slate-50 px-5 py-4">
+          {/* รายการที่สั่งไปแล้ว */}
+          <section>
+            <h4 className="mb-2 flex items-center justify-between text-sm font-semibold text-slate-500">
+              <span>สั่งไปแล้ว</span>
+              {bill && (
+                <span className="text-slate-700">
+                  รวม {formatBaht(bill.totalPrice)}
+                </span>
+              )}
+            </h4>
+            {loadingBill ? (
+              <p className="py-4 text-center text-sm text-slate-400">
+                กำลังโหลด...
+              </p>
+            ) : (
+              <OrderHistory items={bill?.orderItems ?? []} />
+            )}
+          </section>
+
+          {/* เพิ่มรายการใหม่ */}
+          <section>
+            <h4 className="mb-2 text-sm font-semibold text-slate-500">
+              เพิ่มรายการ
+            </h4>
+            {categories.map((cat) => {
               const items = cat.menus.filter(
                 (m) => !m.isArchived && m.isAvailable,
               );
               if (items.length === 0) return null;
               return (
                 <div key={cat.id} className="mb-4">
-                  <h4 className="mb-2 text-sm font-semibold text-slate-500">
+                  <p className="mb-2 text-xs font-semibold text-slate-400">
                     {cat.name}
-                  </h4>
+                  </p>
                   <ul className="space-y-2">
                     {items.map((m) => {
                       const n = qty[m.id] ?? 0;
@@ -104,7 +136,7 @@ export function AddItemsModal({
                       return (
                         <li
                           key={m.id}
-                          className="flex items-center justify-between gap-3"
+                          className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2"
                         >
                           <div className="min-w-0">
                             <p className="truncate text-sm font-medium">
@@ -146,22 +178,22 @@ export function AddItemsModal({
                   </ul>
                 </div>
               );
-            })
-          )}
+            })}
+          </section>
         </div>
 
         <footer className="border-t border-slate-200 px-5 py-4">
           {error && <p className="mb-2 text-sm text-rose-600">{error}</p>}
           <button
             type="button"
-            onClick={handleSubmit}
+            onClick={handleAdd}
             disabled={submitting || totalQty === 0}
             className="w-full rounded-lg bg-indigo-600 py-3 text-sm font-semibold text-white disabled:opacity-50"
           >
             {submitting
               ? 'กำลังเพิ่ม...'
               : totalQty === 0
-                ? 'เลือกรายการ'
+                ? 'เลือกรายการเพื่อสั่งเพิ่ม'
                 : `เพิ่ม ${totalQty} รายการ · ${formatBaht(totalSatang)}`}
           </button>
         </footer>

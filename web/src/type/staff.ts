@@ -35,6 +35,13 @@ export interface TableGridItem extends TableInfo {
   bills: (Bill & { serviceRequests: ServiceRequest[] })[];
 }
 
+// บิลที่เปิดอยู่ของโต๊ะ + รายการที่สั่ง (ฝั่งพนักงานดู)
+export interface TableBill {
+  id: number;
+  totalPrice: number; // สตางค์ (ยอดสด ไม่นับ voided)
+  orderItems: OrderItem[];
+}
+
 // รายการในคิวครัว (queued/cooking) พร้อมข้อมูลโต๊ะ
 export interface ActiveOrderItem extends OrderItem {
   bill: Bill & { table: TableInfo };

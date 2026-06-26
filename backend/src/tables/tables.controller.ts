@@ -35,6 +35,15 @@ export class TablesController {
     return this.tables.deleteTable(shopId, id);
   }
 
+  // รายการของบิลที่เปิดอยู่ของโต๊ะ (ให้พนักงานดูว่าโต๊ะนี้สั่งอะไรไปแล้ว)
+  @Get(':id/bill')
+  currentBill(
+    @CurrentShop() shopId: number,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.tables.getCurrentBill(shopId, id);
+  }
+
   @Post(':id/open')
   open(@CurrentShop() shopId: number, @Param('id', ParseIntPipe) id: number) {
     return this.tables.openTable(shopId, id);

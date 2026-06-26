@@ -14,7 +14,7 @@ import type { TableGridItem } from '../type/staff';
 import { TableCard } from '../components/TableCard';
 import { QrModal } from '../components/QrModal';
 import { CheckoutConfirmModal } from '../components/CheckoutConfirmModal';
-import { AddItemsModal } from '../components/AddItemsModal';
+import { TableBillModal } from '../components/TableBillModal';
 
 interface QrTarget {
   tableNumber: string;
@@ -39,7 +39,7 @@ export function AdminGridPage() {
   const [qr, setQr] = useState<QrTarget | null>(null);
   const [checkout, setCheckout] = useState<CheckoutTarget | null>(null);
   const [checkingOut, setCheckingOut] = useState(false);
-  const [addItems, setAddItems] = useState<{
+  const [billModal, setBillModal] = useState<{
     tableId: number;
     tableNumber: string;
   } | null>(null);
@@ -110,15 +110,8 @@ export function AdminGridPage() {
     setQr({ tableNumber: table.tableNumber, url });
   }
 
-  function handleAddItems(table: TableGridItem): void {
-    setAddItems({ tableId: table.id, tableNumber: table.tableNumber });
-  }
-
-  // เพิ่มรายการสำเร็จ -> ปิด modal + reload (socket OrderCreated ก็ reload เช่นกัน)
-  function handleAdded(count: number): void {
-    setAddItems(null);
-    push(`เพิ่ม ${count} รายการแล้ว`, 'success');
-    reload();
+  function handleOpenBill(table: TableGridItem): void {
+    setBillModal({ tableId: table.id, tableNumber: table.tableNumber });
   }
 
   async function handleAck(srId: number): Promise<void> {
@@ -143,7 +136,7 @@ export function AdminGridPage() {
             onCheckout={handleCheckout}
             onAck={handleAck}
             onShowQr={handleShowQr}
-            onAddItems={handleAddItems}
+            onOpenBill={handleOpenBill}
           />
         ))}
       </div>
@@ -166,12 +159,14 @@ export function AdminGridPage() {
         />
       )}
 
-      {addItems && (
-        <AddItemsModal
-          tableId={addItems.tableId}
-          tableNumber={addItems.tableNumber}
-          onClose={() => setAddItems(null)}
-          onAdded={handleAdded}
+      {billModal && (
+        <TableBillModal
+          tableId={billModal.tableId}
+          tableNumber={billModal.tableNumber}
+          onClose={() => {
+            setBillModal(null);
+            reload(); // อัปเดตยอดในผังโต๊ะหลังปิด
+          }}
         />
       )}
     </div>

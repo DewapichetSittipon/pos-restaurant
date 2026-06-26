@@ -7,6 +7,7 @@ import type {
   EodReport,
   OpenTableResult,
   Staff,
+  TableBill,
   TableGridItem,
 } from '../type/staff';
 
@@ -50,6 +51,12 @@ export async function addStaffOrder(
   items: { menuId: number; quantity: number }[],
 ): Promise<void> {
   await api.post('/orders/staff', { tableId, items });
+}
+
+// ดูบิลที่เปิดอยู่ของโต๊ะ (รายการที่สั่งไปแล้ว + สถานะ)
+export async function fetchTableBill(tableId: number): Promise<TableBill> {
+  const { data } = await api.get<TableBill>(`/tables/${tableId}/bill`);
+  return data;
 }
 
 export async function checkoutTable(tableId: number): Promise<CheckoutResult> {

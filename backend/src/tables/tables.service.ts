@@ -82,6 +82,25 @@ export class TablesService {
     }));
   }
 
+  // รายการของบิลที่เปิดอยู่ของโต๊ะ (ฝั่งพนักงาน) — scope ด้วย shopId, รวมสถานะแต่ละรายการ
+  async getCurrentBill(shopId: number, tableId: number) {
+    const bill = await this.prisma.bill.findFirst({
+      where: { tableId, shopId, status: 'pending' },
+      include: {
+        table: true,
+        orderItems: { orderBy: { createdAt: 'asc' } },
+      },
+    });
+    if (!bill) {
+      throw new NotFoundException('โต๊ะนี้ยังไม่มีบิลที่เปิดอยู่');
+    }
+    // ยอดรวมสด (ไม่นับรายการที่ยกเลิก)
+    const totalPrice = bill.orderItems
+      .filter((i) => i.status !== 'voided')
+      .reduce((sum, i) => sum + i.unitPrice * i.quantity, 0);
+    return { ...bill, totalPrice };
+  }
+
   // เปิดโต๊ะ: สร้าง Bill ใหม่ + qr_token — 409 ถ้ามี Bill pending อยู่แล้ว
   // verify ว่าโต๊ะเป็นของร้านนี้ก่อนเสมอ
   async openTable(
