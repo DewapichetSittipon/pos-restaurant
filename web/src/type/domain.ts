@@ -31,6 +31,8 @@ export interface OrderItem {
   quantity: number;
   unitPrice: number; // สตางค์
   itemName: string;
+  note: string | null; // หมายเหตุ/คำขอพิเศษ
+  voidReason: string | null; // เหตุผลตอนยกเลิก
   imageUrl: string | null; // snapshot รูปตอนสั่ง (null = ไม่มี/ใช้ placeholder)
   status: OrderItemStatus;
   createdAt: string; // เวลาสั่ง
@@ -51,10 +53,15 @@ export interface TableInfo {
   status: TableStatus;
 }
 
+export type PaymentMethod = 'cash' | 'transfer';
+
 export interface Bill {
   id: number;
   tableId: number;
   totalPrice: number | null;
+  discount: number; // สตางค์ (default 0)
+  paymentMethod: PaymentMethod | null;
+  receivedAmount: number | null; // สตางค์ที่รับมา (เงินสด)
   status: BillStatus;
   qrToken: string;
   createdAt: string;
@@ -73,5 +80,6 @@ export interface CartLine {
   name: string;
   price: number; // สตางค์
   quantity: number;
+  note?: string; // หมายเหตุที่ลูกค้ากรอกต่อรายการ
   imageUrl: string | null;
 }

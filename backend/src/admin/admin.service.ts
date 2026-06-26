@@ -150,4 +150,31 @@ export class AdminService {
       data: { status: 'active' },
     });
   }
+
+  // พนักงานของร้าน (ให้ admin เลือกตอน reset รหัส กรณีร้านล็อกตัวเองออก)
+  async listShopStaff(shopId: number) {
+    const shop = await this.prisma.shop.findUnique({ where: { id: shopId } });
+    if (!shop) {
+      throw new NotFoundException('ไม่พบร้าน');
+    }
+    return this.prisma.staff.findMany({
+      where: { shopId },
+      orderBy: { id: 'asc' },
+      select: { id: true, username: true },
+    });
+  }
+
+  // admin รีเซ็ตรหัสผ่านพนักงาน (ข้ามร้านได้ — กู้กรณีลืมรหัสทั้งร้าน)
+  async resetStaffPassword(staffId: number, password: string) {
+    const staff = await this.prisma.staff.findUnique({ where: { id: staffId } });
+    if (!staff) {
+      throw new NotFoundException('ไม่พบพนักงาน');
+    }
+    const passwordHash = await bcrypt.hash(password, 10);
+    await this.prisma.staff.update({
+      where: { id: staffId },
+      data: { passwordHash },
+    });
+    return { ok: true, username: staff.username };
+  }
 }

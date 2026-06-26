@@ -57,8 +57,38 @@ function aggregate(items: CheckoutResult['orderItems']): ReceiptLine[] {
 // พิมพ์ใบเสร็จขนาด 80mm ผ่าน window.print() (ไม่ต้องลงไลบรารีเพิ่ม)
 export function printReceipt(bill: CheckoutResult): void {
   const lines = aggregate(bill.orderItems);
-  const total = bill.totalPrice ?? lines.reduce((s, l) => s + l.amount, 0);
+  const subtotal = bill.subtotal ?? lines.reduce((s, l) => s + l.amount, 0);
+  const discount = bill.discount ?? 0;
+  const total = bill.totalPrice ?? subtotal - discount;
   const paidAt = bill.paidAt ?? new Date().toISOString();
+
+  const methodLabel =
+    bill.paymentMethod === 'cash'
+      ? 'เงินสด'
+      : bill.paymentMethod === 'transfer'
+        ? 'เงินโอน'
+        : null;
+  const change =
+    bill.paymentMethod === 'cash' && bill.receivedAmount != null
+      ? bill.receivedAmount - total
+      : null;
+
+  // บรรทัดสรุปยอด: โชว์ส่วนลด/รับเงิน/ทอนเฉพาะเมื่อมี
+  const summary = [
+    discount > 0
+      ? `<div class="meta"><span>ยอดรวม</span><span>${baht(subtotal)}</span></div>
+         <div class="meta"><span>ส่วนลด</span><span>-${baht(discount)}</span></div>`
+      : '',
+    methodLabel
+      ? `<div class="meta"><span>ชำระโดย</span><span>${methodLabel}</span></div>`
+      : '',
+    bill.receivedAmount != null
+      ? `<div class="meta"><span>รับเงิน</span><span>${baht(bill.receivedAmount)}</span></div>`
+      : '',
+    change != null
+      ? `<div class="meta"><span>เงินทอน</span><span>${baht(change)}</span></div>`
+      : '',
+  ].join('');
 
   // หัวร้าน — โชว์เฉพาะบรรทัดที่มีข้อมูล
   const headerLines = [
@@ -156,6 +186,7 @@ export function printReceipt(bill: CheckoutResult): void {
 
     <div class="hr"></div>
 
+    ${summary}
     <div class="total">
       <span>รวมทั้งสิ้น</span>
       <span>${baht(total)} บาท</span>

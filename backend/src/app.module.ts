@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { EventsModule } from './events/events.module';
@@ -11,6 +12,7 @@ import { CategoriesModule } from './categories/categories.module';
 import { ReportsModule } from './reports/reports.module';
 import { AdminModule } from './admin/admin.module';
 import { SignupModule } from './signup/signup.module';
+import { StaffModule } from './staff/staff.module';
 import { ShopModule } from './shop/shop.module';
 import { StorageModule } from './uploads/storage.module';
 import { HealthController } from './health/health.controller';
@@ -18,6 +20,8 @@ import { HealthController } from './health/health.controller';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    // กัน brute-force: ใช้ ThrottlerGuard เฉพาะ endpoint login/signup (ไม่ global)
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 10 }]),
     PrismaModule,
     AuthModule,
     EventsModule,
@@ -29,6 +33,7 @@ import { HealthController } from './health/health.controller';
     ReportsModule,
     AdminModule,
     SignupModule,
+    StaffModule,
     ShopModule,
     StorageModule,
   ],

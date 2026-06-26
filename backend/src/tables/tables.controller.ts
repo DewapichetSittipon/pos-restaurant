@@ -10,6 +10,8 @@ import {
 } from '@nestjs/common';
 import { TablesService } from './tables.service';
 import { CreateTableDto } from './dto/create-table.dto';
+import { CheckoutDto } from './dto/checkout.dto';
+import { TransferBillDto } from './dto/transfer-bill.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ActiveShopGuard } from '../auth/active-shop.guard';
 import { CurrentShop } from '../auth/current-shop.decorator';
@@ -49,8 +51,22 @@ export class TablesController {
     return this.tables.openTable(shopId, id);
   }
 
+  // ย้ายบิลที่เปิดอยู่จากโต๊ะนี้ไปโต๊ะปลายทาง
+  @Post(':id/transfer')
+  transfer(
+    @CurrentShop() shopId: number,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: TransferBillDto,
+  ) {
+    return this.tables.transferBill(shopId, id, dto.toTableId);
+  }
+
   @Post(':id/checkout')
-  checkout(@CurrentShop() shopId: number, @Param('id', ParseIntPipe) id: number) {
-    return this.tables.checkout(shopId, id);
+  checkout(
+    @CurrentShop() shopId: number,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CheckoutDto,
+  ) {
+    return this.tables.checkout(shopId, id, dto);
   }
 }

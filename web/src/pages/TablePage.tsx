@@ -78,7 +78,11 @@ function TableContent({ tableId, token }: TableContentProps) {
     setSubmitting(true);
     try {
       await submitOrder({
-        items: cartLines.map((l) => ({ menuId: l.menuId, quantity: l.quantity })),
+        items: cartLines.map((l) => ({
+          menuId: l.menuId,
+          quantity: l.quantity,
+          note: l.note?.trim() || undefined,
+        })),
       });
       clearCart();
       setCartOpen(false);

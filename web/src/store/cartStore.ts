@@ -6,6 +6,7 @@ interface CartState {
   addItem: (menu: MenuItem) => void;
   increment: (menuId: number) => void;
   decrement: (menuId: number) => void;
+  setNote: (menuId: number, note: string) => void;
   removeItem: (menuId: number) => void;
   clear: () => void;
 }
@@ -48,6 +49,12 @@ export const useCartStore = create<CartState>((set) => ({
           l.menuId === menuId ? { ...l, quantity: l.quantity - 1 } : l,
         )
         .filter((l) => l.quantity > 0),
+    })),
+  setNote: (menuId, note) =>
+    set((state) => ({
+      lines: state.lines.map((l) =>
+        l.menuId === menuId ? { ...l, note } : l,
+      ),
     })),
   removeItem: (menuId) =>
     set((state) => ({

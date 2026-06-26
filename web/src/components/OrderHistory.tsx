@@ -39,6 +39,11 @@ export function OrderHistory({ items }: OrderHistoryProps) {
                 <span className="min-w-0 flex-1">
                   <span className="truncate">{item.itemName}</span>{' '}
                   <span className="text-slate-400">×{item.quantity}</span>
+                  {item.note && (
+                    <span className="block text-xs font-medium text-amber-600">
+                      📝 {item.note}
+                    </span>
+                  )}
                   {item.servedAt && (
                     <span className="block text-xs text-emerald-600">
                       เสิร์ฟ {formatTime(item.servedAt)}

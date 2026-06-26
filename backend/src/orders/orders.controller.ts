@@ -13,6 +13,7 @@ import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { StaffOrderDto } from './dto/staff-order.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
+import { VoidOrderDto } from './dto/void-order.dto';
 import { CustomerTokenGuard } from '../auth/customer-token.guard';
 import { CurrentBill } from '../auth/current-bill.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -58,13 +59,14 @@ export class OrdersController {
     return this.orders.updateStatus(shopId, id, dto.status);
   }
 
-  // ยกเลิก (void) รายการอาหาร
+  // ยกเลิก (void) รายการอาหาร พร้อมเหตุผล
   @Post(':id/void')
   @UseGuards(JwtAuthGuard, ActiveShopGuard)
   voidItem(
     @CurrentShop() shopId: number,
     @Param('id', ParseIntPipe) id: number,
+    @Body() dto: VoidOrderDto,
   ) {
-    return this.orders.voidItem(shopId, id);
+    return this.orders.voidItem(shopId, id, dto.reason);
   }
 }

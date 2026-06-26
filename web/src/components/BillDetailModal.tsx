@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { fetchBillDetail } from '../services/staffApi';
+import { fetchBillDetail, fetchBillReceipt } from '../services/staffApi';
 import { useToastStore } from '../store/toastStore';
 import { formatBaht } from '../utils/money';
+import { printReceipt } from '../utils/printReceipt';
 import type { BillDetail } from '../type/staff';
 
 interface BillDetailModalProps {
@@ -13,7 +14,19 @@ interface BillDetailModalProps {
 export function BillDetailModal({ billId, onClose }: BillDetailModalProps) {
   const [detail, setDetail] = useState<BillDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [reprinting, setReprinting] = useState(false);
   const push = useToastStore((s) => s.push);
+
+  async function handleReprint(): Promise<void> {
+    setReprinting(true);
+    try {
+      printReceipt(await fetchBillReceipt(billId));
+    } catch {
+      push('พิมพ์ใบเสร็จไม่สำเร็จ', 'error');
+    } finally {
+      setReprinting(false);
+    }
+  }
 
   useEffect(() => {
     setLoading(true);
@@ -97,11 +110,21 @@ export function BillDetailModal({ billId, onClose }: BillDetailModalProps) {
         </div>
 
         {detail && (
-          <div className="flex items-center justify-between border-t border-slate-100 px-5 py-4">
-            <span className="text-sm font-semibold text-slate-500">ยอดรวม</span>
-            <span className="text-xl font-bold text-emerald-600">
-              {formatBaht(detail.totalSatang)}
-            </span>
+          <div className="border-t border-slate-100 px-5 py-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold text-slate-500">ยอดรวม</span>
+              <span className="text-xl font-bold text-emerald-600">
+                {formatBaht(detail.totalSatang)}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={handleReprint}
+              disabled={reprinting}
+              className="mt-3 w-full rounded-lg bg-slate-800 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              {reprinting ? 'กำลังพิมพ์...' : '🖨️ พิมพ์ใบเสร็จซ้ำ'}
+            </button>
           </div>
         )}
       </div>

@@ -1,7 +1,7 @@
 import type { OrderItem, ServiceRequestType } from './domain';
 
 export interface CreateOrderPayload {
-  items: { menuId: number; quantity: number }[];
+  items: { menuId: number; quantity: number; note?: string }[];
 }
 
 export interface CreateServiceRequestPayload {

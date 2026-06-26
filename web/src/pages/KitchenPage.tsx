@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { fetchActiveQueue, updateOrderStatus } from '../services/staffApi';
+import {
+  fetchActiveQueue,
+  updateOrderStatus,
+  voidOrder,
+} from '../services/staffApi';
 import { useStaffSocket } from '../hooks/useStaffSocket';
 import { useToastStore } from '../store/toastStore';
 import { SOCKET_EVENTS } from '../services/socket';
@@ -64,6 +68,21 @@ export function KitchenPage() {
     }
   }
 
+  // ยกเลิกรายการ พร้อมถามเหตุผล (คืนสต็อกเฉพาะที่ยังไม่เริ่มทำ — ฝั่ง backend จัดการ)
+  async function handleVoid(item: ActiveOrderItem): Promise<void> {
+    const reason = window.prompt(
+      `ยกเลิก "${item.itemName}" ×${item.quantity}?\nระบุเหตุผล (ไม่บังคับ):`,
+    );
+    if (reason === null) return; // กดยกเลิก prompt
+    try {
+      await voidOrder(item.id, reason || undefined);
+      push('ยกเลิกรายการแล้ว', 'success');
+      reload();
+    } catch {
+      push('ยกเลิกไม่สำเร็จ', 'error');
+    }
+  }
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-6">
       <h1 className="mb-4 text-2xl font-bold">จอครัว</h1>
@@ -90,6 +109,11 @@ export function KitchenPage() {
                     <span className="min-w-0">
                       <span className="truncate">{item.itemName}</span>{' '}
                       <span className="text-slate-400">×{item.quantity}</span>
+                      {item.note && (
+                        <span className="mt-0.5 block rounded bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-800">
+                          📝 {item.note}
+                        </span>
+                      )}
                       {item.servedAt && (
                         <span className="block text-xs text-emerald-600">
                           เสิร์ฟ {formatTime(item.servedAt)}
@@ -101,13 +125,22 @@ export function KitchenPage() {
                       {item.status === 'served' ? (
                         <span className="text-lg text-emerald-600">✓</span>
                       ) : (
-                        <button
-                          type="button"
-                          onClick={() => advance(item)}
-                          className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white"
-                        >
-                          {item.status === 'queued' ? 'เริ่มทำ' : 'เสิร์ฟแล้ว'}
-                        </button>
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleVoid(item)}
+                            className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-semibold text-rose-600"
+                          >
+                            ยกเลิก
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => advance(item)}
+                            className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white"
+                          >
+                            {item.status === 'queued' ? 'เริ่มทำ' : 'เสิร์ฟแล้ว'}
+                          </button>
+                        </>
                       )}
                     </span>
                   </li>

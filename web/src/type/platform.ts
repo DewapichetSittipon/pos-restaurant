@@ -31,6 +31,12 @@ export interface CreateShopResult {
   staff: { id: number; username: string; shopId: number };
 }
 
+// พนักงานของร้าน (มุมมอง admin — สำหรับ reset รหัส)
+export interface ShopStaff {
+  id: number;
+  username: string;
+}
+
 // payload ที่ร้านกรอกตอนสมัครเปิดร้านเอง (public)
 export interface SignupPayload {
   shopName: string;

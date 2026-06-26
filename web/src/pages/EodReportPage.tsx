@@ -1,22 +1,26 @@
 import { useEffect, useState } from 'react';
-import { fetchEod } from '../services/staffApi';
+import { fetchEod, fetchTopMenus } from '../services/staffApi';
 import { useToastStore } from '../store/toastStore';
 import { formatBaht } from '../utils/money';
 import { bangkokToday } from '../utils/datetime';
 import { BillDetailModal } from '../components/BillDetailModal';
-import type { EodReport } from '../type/staff';
+import type { EodReport, TopMenusReport } from '../type/staff';
 
 export function EodReportPage() {
   const [date, setDate] = useState(bangkokToday());
   const [report, setReport] = useState<EodReport | null>(null);
+  const [topMenus, setTopMenus] = useState<TopMenusReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedBillId, setSelectedBillId] = useState<number | null>(null);
   const push = useToastStore((s) => s.push);
 
   useEffect(() => {
     setLoading(true);
-    fetchEod(date)
-      .then(setReport)
+    Promise.all([fetchEod(date), fetchTopMenus(date)])
+      .then(([eod, top]) => {
+        setReport(eod);
+        setTopMenus(top);
+      })
       .catch(() => push('โหลดรายงานไม่สำเร็จ', 'error'))
       .finally(() => setLoading(false));
   }, [date, push]);
@@ -45,6 +49,32 @@ export function EodReportPage() {
           <p className="text-3xl font-bold">{report?.billCount ?? 0}</p>
         </div>
       </div>
+
+      {/* เมนูขายดี */}
+      {topMenus && topMenus.menus.length > 0 && (
+        <div className="mb-6 rounded-2xl bg-white p-4 shadow-sm">
+          <p className="mb-3 text-sm font-semibold text-slate-500">
+            🔥 เมนูขายดี
+          </p>
+          <ul className="space-y-2">
+            {topMenus.menus.map((m, i) => (
+              <li
+                key={m.itemName}
+                className="flex items-center gap-3 text-sm"
+              >
+                <span className="w-5 text-center font-bold text-slate-400">
+                  {i + 1}
+                </span>
+                <span className="flex-1 font-medium">{m.itemName}</span>
+                <span className="text-slate-400">×{m.quantity}</span>
+                <span className="w-20 text-right font-medium text-emerald-600">
+                  {formatBaht(m.revenueSatang)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="rounded-2xl bg-white p-4 shadow-sm">
         <p className="mb-3 text-sm font-semibold text-slate-500">

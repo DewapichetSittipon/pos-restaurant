@@ -48,6 +48,46 @@ export class ReportsService {
     };
   }
 
+  // เมนูขายดีของวัน — รวมจำนวน/ยอดขายต่อเมนู จากบิลที่ paid (ไม่นับ voided)
+  async topMenus(shopId: number, dateStr?: string) {
+    const date = dateStr ?? this.bangkokToday();
+    const start = new Date(`${date}T00:00:00+07:00`);
+    if (Number.isNaN(start.getTime())) {
+      throw new BadRequestException('รูปแบบวันที่ไม่ถูกต้อง (YYYY-MM-DD)');
+    }
+    const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+
+    const items = await this.prisma.orderItem.findMany({
+      where: {
+        status: { not: 'voided' },
+        bill: { shopId, status: 'paid', paidAt: { gte: start, lt: end } },
+      },
+      select: { itemName: true, quantity: true, unitPrice: true },
+    });
+
+    const map = new Map<
+      string,
+      { itemName: string; quantity: number; revenueSatang: number }
+    >();
+    for (const it of items) {
+      const row = map.get(it.itemName) ?? {
+        itemName: it.itemName,
+        quantity: 0,
+        revenueSatang: 0,
+      };
+      row.quantity += it.quantity;
+      row.revenueSatang += it.unitPrice * it.quantity;
+      map.set(it.itemName, row);
+    }
+
+    return {
+      date,
+      menus: [...map.values()]
+        .sort((a, b) => b.quantity - a.quantity)
+        .slice(0, 10),
+    };
+  }
+
   // รายละเอียดบิลย้อนหลัง — รายการเมนูที่สั่ง จัดกลุ่มตามหมวด (scope ตามร้าน)
   // ไม่นับรายการที่ถูกยกเลิก (voided) เพื่อให้ยอดตรงกับยอดบิล
   async billDetail(shopId: number, billId: number) {
@@ -110,6 +150,40 @@ export class ReportsService {
       paidAt: bill.paidAt,
       totalSatang: bill.totalPrice ?? 0,
       categories: [...groups.values()],
+    };
+  }
+
+  // ข้อมูลบิลในรูปแบบเดียวกับตอน checkout — สำหรับพิมพ์ใบเสร็จซ้ำ
+  async billReceipt(shopId: number, billId: number) {
+    const bill = await this.prisma.bill.findFirst({
+      where: { id: billId, shopId },
+      include: {
+        table: true,
+        shop: true,
+        orderItems: {
+          where: { status: { not: 'voided' } },
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+    if (!bill) throw new NotFoundException('ไม่พบบิล');
+
+    const subtotal = bill.orderItems.reduce(
+      (sum, i) => sum + i.unitPrice * i.quantity,
+      0,
+    );
+    const { table, shop, orderItems, ...rest } = bill;
+    return {
+      ...rest,
+      subtotal,
+      table: { id: table.id, tableNumber: table.tableNumber },
+      shop: {
+        name: shop.name,
+        address: shop.address,
+        phone: shop.phone,
+        taxId: shop.taxId,
+      },
+      orderItems,
     };
   }
 }

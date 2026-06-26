@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { fetchCatalog } from '../services/manageApi';
-import { addStaffOrder, fetchTableBill } from '../services/staffApi';
+import {
+  addStaffOrder,
+  fetchTableBill,
+  transferBill,
+} from '../services/staffApi';
 import { useToastStore } from '../store/toastStore';
 import { formatBaht } from '../utils/money';
 import type { Category } from '../type/domain';
@@ -10,21 +14,40 @@ import { OrderHistory } from './OrderHistory';
 interface TableBillModalProps {
   tableId: number;
   tableNumber: string;
+  vacantTables: { id: number; tableNumber: string }[];
   onClose: () => void;
+  onTransferred: () => void;
 }
 
 export function TableBillModal({
   tableId,
   tableNumber,
+  vacantTables,
   onClose,
+  onTransferred,
 }: TableBillModalProps) {
   const push = useToastStore((s) => s.push);
   const [bill, setBill] = useState<TableBill | null>(null);
   const [loadingBill, setLoadingBill] = useState(true);
   const [categories, setCategories] = useState<Category[]>([]);
   const [qty, setQty] = useState<Record<number, number>>({});
+  const [notes, setNotes] = useState<Record<number, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showTransfer, setShowTransfer] = useState(false);
+  const [transferring, setTransferring] = useState(false);
+
+  async function handleTransfer(toTableId: number): Promise<void> {
+    setTransferring(true);
+    try {
+      await transferBill(tableId, toTableId);
+      push('ย้ายโต๊ะแล้ว', 'success');
+      onTransferred();
+    } catch {
+      push('ย้ายโต๊ะไม่สำเร็จ', 'error');
+      setTransferring(false);
+    }
+  }
 
   const loadBill = useCallback(() => {
     return fetchTableBill(tableId)
@@ -63,7 +86,11 @@ export function TableBillModal({
   async function handleAdd(): Promise<void> {
     const items = Object.entries(qty)
       .filter(([, n]) => n > 0)
-      .map(([menuId, n]) => ({ menuId: Number(menuId), quantity: n }));
+      .map(([menuId, n]) => ({
+        menuId: Number(menuId),
+        quantity: n,
+        note: notes[Number(menuId)]?.trim() || undefined,
+      }));
     if (items.length === 0) return;
     setSubmitting(true);
     setError(null);
@@ -71,6 +98,7 @@ export function TableBillModal({
       await addStaffOrder(tableId, items);
       push(`เพิ่ม ${totalQty} รายการแล้ว`, 'success');
       setQty({});
+      setNotes({});
       await loadBill(); // รีเฟรชรายการ "สั่งแล้ว" ให้เห็นทันที (modal ยังเปิดอยู่)
     } catch {
       setError('เพิ่มรายการไม่สำเร็จ (เมนูอาจหมด/งดขาย)');
@@ -85,14 +113,49 @@ export function TableBillModal({
       <div className="relative flex max-h-[88vh] w-full max-w-md flex-col rounded-t-2xl bg-white shadow-xl sm:rounded-2xl">
         <header className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
           <h3 className="text-base font-bold">บิลโต๊ะ {tableNumber}</h3>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-600"
-          >
-            ✕
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setShowTransfer((v) => !v)}
+              className="text-sm font-medium text-indigo-600"
+            >
+              ย้ายโต๊ะ
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-slate-400 hover:text-slate-600"
+            >
+              ✕
+            </button>
+          </div>
         </header>
+
+        {/* ตัวเลือกย้ายไปโต๊ะว่าง */}
+        {showTransfer && (
+          <div className="border-b border-slate-200 bg-indigo-50 px-5 py-3">
+            <p className="mb-2 text-sm font-medium text-slate-600">
+              ย้ายไปโต๊ะว่าง:
+            </p>
+            {vacantTables.length === 0 ? (
+              <p className="text-sm text-slate-400">ไม่มีโต๊ะว่าง</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {vacantTables.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => handleTransfer(t.id)}
+                    disabled={transferring}
+                    className="rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-indigo-700 ring-1 ring-indigo-200 disabled:opacity-50"
+                  >
+                    โต๊ะ {t.tableNumber}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="flex-1 space-y-5 overflow-y-auto bg-slate-50 px-5 py-4">
           {/* รายการที่สั่งไปแล้ว */}
@@ -136,42 +199,56 @@ export function TableBillModal({
                       return (
                         <li
                           key={m.id}
-                          className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2"
+                          className="rounded-lg bg-white px-3 py-2"
                         >
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-medium">
-                              {m.name}
-                              {soldOut && (
-                                <span className="ml-2 text-xs text-rose-500">
-                                  หมด
-                                </span>
-                              )}
-                            </p>
-                            <p className="text-xs text-slate-500">
-                              {formatBaht(m.price)}
-                            </p>
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium">
+                                {m.name}
+                                {soldOut && (
+                                  <span className="ml-2 text-xs text-rose-500">
+                                    หมด
+                                  </span>
+                                )}
+                              </p>
+                              <p className="text-xs text-slate-500">
+                                {formatBaht(m.price)}
+                              </p>
+                            </div>
+                            <div className="flex shrink-0 items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => bump(m.id, -1)}
+                                disabled={n === 0}
+                                className="h-8 w-8 rounded-full bg-slate-100 text-lg font-bold text-slate-600 disabled:opacity-40"
+                              >
+                                −
+                              </button>
+                              <span className="w-6 text-center text-sm font-semibold">
+                                {n}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => bump(m.id, 1)}
+                                disabled={soldOut}
+                                className="h-8 w-8 rounded-full bg-indigo-600 text-lg font-bold text-white disabled:opacity-40"
+                              >
+                                +
+                              </button>
+                            </div>
                           </div>
-                          <div className="flex shrink-0 items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => bump(m.id, -1)}
-                              disabled={n === 0}
-                              className="h-8 w-8 rounded-full bg-slate-100 text-lg font-bold text-slate-600 disabled:opacity-40"
-                            >
-                              −
-                            </button>
-                            <span className="w-6 text-center text-sm font-semibold">
-                              {n}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => bump(m.id, 1)}
-                              disabled={soldOut}
-                              className="h-8 w-8 rounded-full bg-indigo-600 text-lg font-bold text-white disabled:opacity-40"
-                            >
-                              +
-                            </button>
-                          </div>
+                          {n > 0 && (
+                            <input
+                              type="text"
+                              value={notes[m.id] ?? ''}
+                              onChange={(e) =>
+                                setNotes((s) => ({ ...s, [m.id]: e.target.value }))
+                              }
+                              maxLength={200}
+                              placeholder="หมายเหตุ เช่น ไม่เผ็ด (ถ้ามี)"
+                              className="mt-2 w-full rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-sm"
+                            />
+                          )}
                         </li>
                       );
                     })}

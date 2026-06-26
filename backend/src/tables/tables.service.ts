@@ -82,6 +82,53 @@ export class TablesService {
     }));
   }
 
+  // ย้ายบิลที่เปิดอยู่ไปโต๊ะอื่น (ที่ว่าง) — เช่น ลูกค้าเปลี่ยนโต๊ะ
+  async transferBill(shopId: number, fromTableId: number, toTableId: number) {
+    if (fromTableId === toTableId) {
+      throw new ConflictException('เป็นโต๊ะเดียวกัน');
+    }
+    return this.prisma.$transaction(async (tx) => {
+      const bill = await tx.bill.findFirst({
+        where: { tableId: fromTableId, shopId, status: 'pending' },
+      });
+      if (!bill) {
+        throw new NotFoundException('ไม่พบบิลที่เปิดอยู่ของโต๊ะต้นทาง');
+      }
+      const toTable = await tx.table.findFirst({
+        where: { id: toTableId, shopId },
+      });
+      if (!toTable) {
+        throw new NotFoundException('ไม่พบโต๊ะปลายทาง');
+      }
+      const occupied = await tx.bill.findFirst({
+        where: { tableId: toTableId, status: 'pending' },
+      });
+      if (occupied) {
+        throw new ConflictException('โต๊ะปลายทางมีลูกค้าอยู่แล้ว');
+      }
+
+      await tx.bill.update({
+        where: { id: bill.id },
+        data: { tableId: toTableId },
+      });
+      await tx.table.update({
+        where: { id: fromTableId },
+        data: { status: 'vacant' },
+      });
+      await tx.table.update({
+        where: { id: toTableId },
+        data: { status: 'occupied' },
+      });
+
+      // ให้ทุกอุปกรณ์ในร้านรีโหลดผัง (reuse event ที่ grid ฟังอยู่แล้ว)
+      this.events.emitToShop(shopId, SocketEvent.TableOpened, {
+        tableId: toTableId,
+        billId: bill.id,
+      });
+      return { ok: true };
+    });
+  }
+
   // รายการของบิลที่เปิดอยู่ของโต๊ะ (ฝั่งพนักงาน) — scope ด้วย shopId, รวมสถานะแต่ละรายการ
   async getCurrentBill(shopId: number, tableId: number) {
     const bill = await this.prisma.bill.findFirst({
@@ -141,8 +188,16 @@ export class TablesService {
     });
   }
 
-  // เช็คบิล: snapshot total_price, set paid + paid_at, โต๊ะกลับเป็น vacant
-  async checkout(shopId: number, tableId: number) {
+  // เช็คบิล: snapshot total_price (สุทธิหลังส่วนลด) + วิธีชำระ, set paid, โต๊ะกลับเป็น vacant
+  async checkout(
+    shopId: number,
+    tableId: number,
+    opts: {
+      discount?: number;
+      paymentMethod: 'cash' | 'transfer';
+      receivedAmount?: number;
+    },
+  ) {
     return this.prisma.$transaction(async (tx) => {
       const bill = await tx.bill.findFirst({
         where: { tableId, shopId, status: 'pending' },
@@ -158,14 +213,24 @@ export class TablesService {
 
       // เฉพาะรายการที่ไม่ถูกยกเลิก — ใช้ทั้งคิดเงินและพิมพ์ใบเสร็จ
       const billedItems = bill.orderItems.filter((i) => i.status !== 'voided');
-      const total = billedItems.reduce(
+      const subtotal = billedItems.reduce(
         (sum, i) => sum + i.unitPrice * i.quantity,
         0,
       );
+      // ส่วนลดต้องไม่เกินยอด (กันยอดติดลบ)
+      const discount = Math.min(Math.max(opts.discount ?? 0, 0), subtotal);
+      const total = subtotal - discount;
 
       const paid = await tx.bill.update({
         where: { id: bill.id },
-        data: { status: 'paid', paidAt: new Date(), totalPrice: total },
+        data: {
+          status: 'paid',
+          paidAt: new Date(),
+          totalPrice: total,
+          discount,
+          paymentMethod: opts.paymentMethod,
+          receivedAmount: opts.receivedAmount ?? null,
+        },
       });
       await tx.table.update({
         where: { id: tableId },
@@ -182,9 +247,10 @@ export class TablesService {
         totalPrice: total,
       });
 
-      // ส่งข้อมูลครบสำหรับพิมพ์ใบเสร็จ (รายการ + โต๊ะ + หัวร้าน)
+      // ส่งข้อมูลครบสำหรับพิมพ์ใบเสร็จ (รายการ + โต๊ะ + หัวร้าน + ยอดก่อนหักส่วนลด)
       return {
         ...paid,
+        subtotal,
         table: { id: bill.table.id, tableNumber: bill.table.tableNumber },
         shop: {
           name: bill.shop.name,

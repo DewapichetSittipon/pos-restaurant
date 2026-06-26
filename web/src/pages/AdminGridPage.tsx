@@ -10,7 +10,7 @@ import { useToastStore } from '../store/toastStore';
 import { SOCKET_EVENTS } from '../services/socket';
 import { formatBaht } from '../utils/money';
 import { printReceipt } from '../utils/printReceipt';
-import type { TableGridItem } from '../type/staff';
+import type { CheckoutPayload, TableGridItem } from '../type/staff';
 import { TableCard } from '../components/TableCard';
 import { QrModal } from '../components/QrModal';
 import { CheckoutConfirmModal } from '../components/CheckoutConfirmModal';
@@ -85,11 +85,11 @@ export function AdminGridPage() {
   }
 
   // ยืนยันแล้ว -> ปิดบิลจริง + พิมพ์ใบเสร็จ
-  async function confirmCheckout(): Promise<void> {
+  async function confirmCheckout(payload: CheckoutPayload): Promise<void> {
     if (!checkout) return;
     setCheckingOut(true);
     try {
-      const bill = await checkoutTable(checkout.tableId);
+      const bill = await checkoutTable(checkout.tableId, payload);
       printReceipt(bill);
       push(`เช็คบิลแล้ว · ${formatBaht(bill.totalPrice ?? 0)}`, 'success');
       setCheckout(null);
@@ -152,7 +152,7 @@ export function AdminGridPage() {
       {checkout && (
         <CheckoutConfirmModal
           tableNumber={checkout.tableNumber}
-          total={checkout.total}
+          subtotal={checkout.total}
           busy={checkingOut}
           onConfirm={confirmCheckout}
           onCancel={() => setCheckout(null)}
@@ -163,9 +163,16 @@ export function AdminGridPage() {
         <TableBillModal
           tableId={billModal.tableId}
           tableNumber={billModal.tableNumber}
+          vacantTables={tables
+            .filter((t) => t.status === 'vacant')
+            .map((t) => ({ id: t.id, tableNumber: t.tableNumber }))}
           onClose={() => {
             setBillModal(null);
             reload(); // อัปเดตยอดในผังโต๊ะหลังปิด
+          }}
+          onTransferred={() => {
+            setBillModal(null);
+            reload();
           }}
         />
       )}

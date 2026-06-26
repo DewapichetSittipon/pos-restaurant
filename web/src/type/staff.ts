@@ -13,6 +13,7 @@ export interface OpenTableResult extends Bill {
 
 // ผลลัพธ์ตอนเช็คบิล — มีข้อมูลครบสำหรับพิมพ์ใบเสร็จ
 export interface CheckoutResult extends Bill {
+  subtotal: number; // สตางค์ ก่อนหักส่วนลด
   table: Pick<TableInfo, 'id' | 'tableNumber'>;
   shop: {
     name: string;
@@ -23,11 +24,24 @@ export interface CheckoutResult extends Bill {
   orderItems: OrderItem[];
 }
 
+// payload ตอนเช็คบิล
+export interface CheckoutPayload {
+  discount?: number; // สตางค์
+  paymentMethod: 'cash' | 'transfer';
+  receivedAmount?: number; // สตางค์ (เงินสด)
+}
+
 export interface Staff {
   id: number;
   username: string;
   shopId: number; // tenant ของพนักงาน
   shopStatus: 'pending' | 'active'; // pending = รออนุมัติ ใช้งานไม่ได้
+}
+
+// พนักงานในร้าน (สำหรับหน้าจัดการพนักงาน)
+export interface StaffMember {
+  id: number;
+  username: string;
 }
 
 // โต๊ะ + บิล pending (พร้อม service request) สำหรับ grid หลังบ้าน
@@ -60,6 +74,17 @@ export interface EodReport {
   billCount: number;
   totalSatang: number;
   bills: EodBillRow[];
+}
+
+export interface TopMenuRow {
+  itemName: string;
+  quantity: number;
+  revenueSatang: number;
+}
+
+export interface TopMenusReport {
+  date: string;
+  menus: TopMenuRow[];
 }
 
 export interface BillDetailItem {

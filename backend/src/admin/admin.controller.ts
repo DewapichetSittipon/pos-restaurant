@@ -10,9 +10,11 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Response } from 'express';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { AdminService } from './admin.service';
 import { AdminLoginDto } from './dto/admin-login.dto';
 import { CreateShopDto } from './dto/create-shop.dto';
+import { ResetStaffPasswordDto } from './dto/reset-staff-password.dto';
 import { PlatformAdminGuard } from './platform-admin.guard';
 import { ADMIN_TOKEN_COOKIE } from './admin.types';
 import { CurrentAdmin } from './current-admin.decorator';
@@ -24,6 +26,8 @@ export class AdminController {
   constructor(private readonly admin: AdminService) {}
 
   @Post('login')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   async login(
     @Body() dto: AdminLoginDto,
     @Res({ passthrough: true }) res: Response,
@@ -66,6 +70,23 @@ export class AdminController {
   @UseGuards(PlatformAdminGuard)
   approveShop(@Param('id', ParseIntPipe) id: number) {
     return this.admin.approveShop(id);
+  }
+
+  // พนักงานของร้าน (สำหรับ reset รหัส)
+  @Get('shops/:id/staff')
+  @UseGuards(PlatformAdminGuard)
+  listShopStaff(@Param('id', ParseIntPipe) id: number) {
+    return this.admin.listShopStaff(id);
+  }
+
+  // admin รีเซ็ตรหัสผ่านพนักงาน (กู้ร้านที่ลืมรหัส)
+  @Post('staff/:staffId/reset-password')
+  @UseGuards(PlatformAdminGuard)
+  resetStaffPassword(
+    @Param('staffId', ParseIntPipe) staffId: number,
+    @Body() dto: ResetStaffPasswordDto,
+  ) {
+    return this.admin.resetStaffPassword(staffId, dto.password);
   }
 
   @Delete('shops/:id')

@@ -55,6 +55,7 @@ export class OrdersService {
             quantity: line.quantity,
             unitPrice: menu.price, // สตางค์ snapshot
             itemName: menu.name, // snapshot ชื่อ
+            note: line.note?.trim() || null, // หมายเหตุต่อรายการ
             imageUrl: menu.imageUrl, // snapshot รูป
           },
         });
@@ -120,8 +121,9 @@ export class OrdersService {
     return updated;
   }
 
-  // Void (ADR-0002): พนักงานยกเลิกได้เฉพาะตอน queued -> คืนสต็อก
-  async voidItem(shopId: number, id: number) {
+  // Void (ADR-0002): ยกเลิกรายการได้ทุกสถานะ (ยกเว้นที่ยกเลิกไปแล้ว) พร้อมเหตุผล
+  // คืนสต็อกเฉพาะรายการที่ยัง queued (ของที่เริ่มทำแล้ว = ต้นทุนเสีย ไม่คืน)
+  async voidItem(shopId: number, id: number, reason?: string) {
     const updated = await this.prisma.$transaction(async (tx) => {
       const item = await tx.orderItem.findFirst({
         where: { id, bill: { shopId } },
@@ -129,23 +131,24 @@ export class OrdersService {
       if (!item) {
         throw new NotFoundException('ไม่พบรายการอาหาร');
       }
-      if (item.status !== 'queued') {
-        throw new ConflictException(
-          'ยกเลิกได้เฉพาะรายการที่ยังไม่เริ่มทำ (queued)',
-        );
+      if (item.status === 'voided') {
+        throw new ConflictException('รายการนี้ถูกยกเลิกไปแล้ว');
       }
 
-      const menu = await tx.menu.findUnique({ where: { id: item.menuId } });
-      if (menu && menu.stockCount !== null) {
-        await tx.menu.update({
-          where: { id: menu.id },
-          data: { stockCount: { increment: item.quantity } },
-        });
+      // คืนสต็อกเฉพาะตอนยังไม่เริ่มทำ
+      if (item.status === 'queued') {
+        const menu = await tx.menu.findUnique({ where: { id: item.menuId } });
+        if (menu && menu.stockCount !== null) {
+          await tx.menu.update({
+            where: { id: menu.id },
+            data: { stockCount: { increment: item.quantity } },
+          });
+        }
       }
 
       return tx.orderItem.update({
         where: { id },
-        data: { status: 'voided' },
+        data: { status: 'voided', voidReason: reason?.trim() || null },
       });
     });
 

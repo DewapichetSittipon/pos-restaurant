@@ -3,12 +3,15 @@ import type { OrderItem, OrderItemStatus, ServiceRequest } from '../type/domain'
 import type {
   ActiveOrderItem,
   BillDetail,
+  CheckoutPayload,
   CheckoutResult,
   EodReport,
   OpenTableResult,
   Staff,
+  StaffMember,
   TableBill,
   TableGridItem,
+  TopMenusReport,
 } from '../type/staff';
 
 export async function login(username: string, password: string): Promise<Staff> {
@@ -35,6 +38,32 @@ export async function fetchMe(): Promise<Staff> {
   return data.staff;
 }
 
+// ----- จัดการพนักงานในร้าน -----
+
+export async function fetchStaff(): Promise<StaffMember[]> {
+  const { data } = await api.get<StaffMember[]>('/staff');
+  return data;
+}
+
+export async function createStaff(
+  username: string,
+  password: string,
+): Promise<StaffMember> {
+  const { data } = await api.post<StaffMember>('/staff', { username, password });
+  return data;
+}
+
+export async function setStaffPassword(
+  id: number,
+  password: string,
+): Promise<void> {
+  await api.patch(`/staff/${id}/password`, { password });
+}
+
+export async function deleteStaff(id: number): Promise<void> {
+  await api.delete(`/staff/${id}`);
+}
+
 export async function fetchTables(): Promise<TableGridItem[]> {
   const { data } = await api.get<TableGridItem[]>('/tables');
   return data;
@@ -48,7 +77,7 @@ export async function openTable(tableId: number): Promise<OpenTableResult> {
 // พนักงานคีย์ออเดอร์ให้โต๊ะ (เพิ่มรายการเข้าบิลที่เปิดอยู่)
 export async function addStaffOrder(
   tableId: number,
-  items: { menuId: number; quantity: number }[],
+  items: { menuId: number; quantity: number; note?: string }[],
 ): Promise<void> {
   await api.post('/orders/staff', { tableId, items });
 }
@@ -59,8 +88,22 @@ export async function fetchTableBill(tableId: number): Promise<TableBill> {
   return data;
 }
 
-export async function checkoutTable(tableId: number): Promise<CheckoutResult> {
-  const { data } = await api.post<CheckoutResult>(`/tables/${tableId}/checkout`);
+// ย้ายบิลที่เปิดอยู่ไปโต๊ะอื่น
+export async function transferBill(
+  fromTableId: number,
+  toTableId: number,
+): Promise<void> {
+  await api.post(`/tables/${fromTableId}/transfer`, { toTableId });
+}
+
+export async function checkoutTable(
+  tableId: number,
+  payload: CheckoutPayload,
+): Promise<CheckoutResult> {
+  const { data } = await api.post<CheckoutResult>(
+    `/tables/${tableId}/checkout`,
+    payload,
+  );
   return data;
 }
 
@@ -82,8 +125,11 @@ export async function updateOrderStatus(
   return data;
 }
 
-export async function voidOrder(id: number): Promise<OrderItem> {
-  const { data } = await api.post<OrderItem>(`/orders/${id}/void`);
+export async function voidOrder(
+  id: number,
+  reason?: string,
+): Promise<OrderItem> {
+  const { data } = await api.post<OrderItem>(`/orders/${id}/void`, { reason });
   return data;
 }
 
@@ -94,7 +140,24 @@ export async function fetchEod(date?: string): Promise<EodReport> {
   return data;
 }
 
+export async function fetchTopMenus(date?: string): Promise<TopMenusReport> {
+  const { data } = await api.get<TopMenusReport>('/reports/top-menus', {
+    params: date ? { date } : undefined,
+  });
+  return data;
+}
+
 export async function fetchBillDetail(billId: number): Promise<BillDetail> {
   const { data } = await api.get<BillDetail>(`/reports/bills/${billId}`);
+  return data;
+}
+
+// ข้อมูลบิลสำหรับพิมพ์ใบเสร็จซ้ำ
+export async function fetchBillReceipt(
+  billId: number,
+): Promise<CheckoutResult> {
+  const { data } = await api.get<CheckoutResult>(
+    `/reports/bills/${billId}/receipt`,
+  );
   return data;
 }

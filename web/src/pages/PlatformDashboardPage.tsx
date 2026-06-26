@@ -7,9 +7,11 @@ import {
   createShop,
   deleteShop,
   fetchShops,
+  fetchShopStaff,
+  resetStaffPassword,
 } from '../services/platformApi';
 import { usePlatformStore } from '../store/platformStore';
-import type { ShopSummary } from '../type/platform';
+import type { ShopStaff, ShopSummary } from '../type/platform';
 
 const EMPTY = { shopName: '', slug: '', staffUsername: '', staffPassword: '' };
 
@@ -33,6 +35,13 @@ export function PlatformDashboardPage() {
   const [approvingId, setApprovingId] = useState<number | null>(null);
   const [rejectingId, setRejectingId] = useState<number | null>(null);
 
+  // จัดการ login: ดู staff ของร้าน + reset รหัส
+  const [staffShop, setStaffShop] = useState<ShopSummary | null>(null);
+  const [staffList, setStaffList] = useState<ShopStaff[]>([]);
+  const [resetId, setResetId] = useState<number | null>(null);
+  const [resetPw, setResetPw] = useState('');
+  const [resetBusy, setResetBusy] = useState(false);
+
   const reload = useCallback(() => {
     fetchShops()
       .then(setShops)
@@ -41,7 +50,19 @@ export function PlatformDashboardPage() {
 
   useEffect(() => {
     reload();
+    // poll ทุก 30 วิ ให้ร้านสมัครใหม่โผล่เองโดยไม่ต้องรีโหลด
+    const timer = window.setInterval(reload, 30000);
+    return () => window.clearInterval(timer);
   }, [reload]);
+
+  // แจ้งเตือนผ่าน title ของแท็บ (เห็นได้แม้สลับไปแท็บอื่น)
+  const pendingCount = shops.filter((s) => s.status === 'pending').length;
+  useEffect(() => {
+    document.title = pendingCount > 0 ? `(${pendingCount}) ร้านรออนุมัติ` : 'ผู้ดูแลแพลตฟอร์ม';
+    return () => {
+      document.title = 'ผู้ดูแลแพลตฟอร์ม';
+    };
+  }, [pendingCount]);
 
   async function handleLogout(): Promise<void> {
     await adminLogout();
@@ -131,6 +152,38 @@ export function PlatformDashboardPage() {
       setError('ปฏิเสธไม่สำเร็จ');
     } finally {
       setRejectingId(null);
+    }
+  }
+
+  async function openStaffModal(shop: ShopSummary): Promise<void> {
+    setStaffShop(shop);
+    setStaffList([]);
+    setResetId(null);
+    setResetPw('');
+    setError(null);
+    setSuccess(null);
+    try {
+      setStaffList(await fetchShopStaff(shop.id));
+    } catch {
+      setError('โหลดพนักงานไม่สำเร็จ');
+    }
+  }
+
+  async function handleResetSave(staff: ShopStaff): Promise<void> {
+    if (resetPw.length < 6) {
+      setError('รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร');
+      return;
+    }
+    setResetBusy(true);
+    setError(null);
+    try {
+      await resetStaffPassword(staff.id, resetPw);
+      setSuccess(`รีเซ็ตรหัสของ "${staff.username}" แล้ว`);
+      setStaffShop(null);
+    } catch {
+      setError('รีเซ็ตรหัสไม่สำเร็จ');
+    } finally {
+      setResetBusy(false);
     }
   }
 
@@ -319,13 +372,22 @@ export function PlatformDashboardPage() {
                       <td className="py-2.5 pr-4">{shop.staffCount}</td>
                       <td className="py-2.5 pr-4">{shop.tableCount}</td>
                       <td className="py-2.5 text-right">
-                        <button
-                          type="button"
-                          onClick={() => askDelete(shop)}
-                          className="text-rose-500 hover:text-rose-700"
-                        >
-                          ลบ
-                        </button>
+                        <div className="flex justify-end gap-3">
+                          <button
+                            type="button"
+                            onClick={() => openStaffModal(shop)}
+                            className="text-indigo-600 hover:text-indigo-800"
+                          >
+                            login
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => askDelete(shop)}
+                            className="text-rose-500 hover:text-rose-700"
+                          >
+                            ลบ
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -380,6 +442,76 @@ export function PlatformDashboardPage() {
                 {deleting ? 'กำลังลบ...' : 'ลบถาวร'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* จัดการ login — ดูพนักงาน + reset รหัส */}
+      {staffShop && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-6">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => !resetBusy && setStaffShop(null)}
+          />
+          <div className="relative w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+            <h3 className="text-lg font-bold">login ของ {staffShop.name}</h3>
+            <p className="mt-1 text-sm text-slate-500">
+              รีเซ็ตรหัสผ่านให้พนักงานที่ลืมรหัส
+            </p>
+            {error && <p className="mt-2 text-sm text-rose-600">{error}</p>}
+            <ul className="mt-4 divide-y divide-slate-100">
+              {staffList.length === 0 ? (
+                <li className="py-3 text-center text-sm text-slate-400">
+                  กำลังโหลด...
+                </li>
+              ) : (
+                staffList.map((st) => (
+                  <li key={st.id} className="py-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium">{st.username}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setResetId(resetId === st.id ? null : st.id);
+                          setResetPw('');
+                          setError(null);
+                        }}
+                        className="text-sm font-medium text-indigo-600"
+                      >
+                        รีเซ็ตรหัส
+                      </button>
+                    </div>
+                    {resetId === st.id && (
+                      <div className="mt-2 flex gap-2">
+                        <input
+                          type="text"
+                          autoFocus
+                          value={resetPw}
+                          onChange={(e) => setResetPw(e.target.value)}
+                          placeholder="รหัสใหม่ (อย่างน้อย 6 ตัว)"
+                          className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleResetSave(st)}
+                          disabled={resetBusy}
+                          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                        >
+                          บันทึก
+                        </button>
+                      </div>
+                    )}
+                  </li>
+                ))
+              )}
+            </ul>
+            <button
+              type="button"
+              onClick={() => setStaffShop(null)}
+              className="mt-4 w-full rounded-lg bg-slate-100 py-2.5 text-sm font-semibold text-slate-700"
+            >
+              ปิด
+            </button>
           </div>
         </div>
       )}

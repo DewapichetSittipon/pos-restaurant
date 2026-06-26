@@ -3,6 +3,7 @@ import type {
   CreateShopPayload,
   CreateShopResult,
   PlatformAdmin,
+  ShopStaff,
   ShopSummary,
   SignupPayload,
 } from '../type/platform';
@@ -53,4 +54,18 @@ export async function signup(payload: SignupPayload): Promise<void> {
 // admin อนุมัติร้าน pending -> active
 export async function approveShop(id: number): Promise<void> {
   await api.post(`/admin/shops/${id}/approve`);
+}
+
+// ----- reset login ของร้าน (กรณีลืมรหัส) -----
+
+export async function fetchShopStaff(shopId: number): Promise<ShopStaff[]> {
+  const { data } = await api.get<ShopStaff[]>(`/admin/shops/${shopId}/staff`);
+  return data;
+}
+
+export async function resetStaffPassword(
+  staffId: number,
+  password: string,
+): Promise<void> {
+  await api.post(`/admin/staff/${staffId}/reset-password`, { password });
 }
