@@ -25,3 +25,27 @@ export interface CreateShopResult {
   shop: { id: number; name: string; slug: string; createdAt: string };
   staff: { id: number; username: string; shopId: number };
 }
+
+export type ShopRequestStatus = 'pending' | 'approved' | 'rejected';
+
+// คำขอเปิดร้านที่ admin เห็นในคอนโซล
+export interface ShopRequest {
+  id: number;
+  shopName: string;
+  contactName: string;
+  phone: string;
+  note: string | null;
+  status: ShopRequestStatus;
+  adminNote: string | null;
+  createdShopId: number | null;
+  createdAt: string;
+  reviewedAt: string | null;
+}
+
+// payload ที่ร้านส่งจากหน้า public
+export interface SubmitShopRequestPayload {
+  shopName: string;
+  contactName: string;
+  phone: string;
+  note?: string;
+}

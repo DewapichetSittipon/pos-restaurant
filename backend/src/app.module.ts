@@ -10,6 +10,7 @@ import { MenusModule } from './menus/menus.module';
 import { CategoriesModule } from './categories/categories.module';
 import { ReportsModule } from './reports/reports.module';
 import { AdminModule } from './admin/admin.module';
+import { ShopRequestsModule } from './shop-requests/shop-requests.module';
 import { ShopModule } from './shop/shop.module';
 import { StorageModule } from './uploads/storage.module';
 import { HealthController } from './health/health.controller';
@@ -27,6 +28,7 @@ import { HealthController } from './health/health.controller';
     CategoriesModule,
     ReportsModule,
     AdminModule,
+    ShopRequestsModule,
     ShopModule,
     StorageModule,
   ],

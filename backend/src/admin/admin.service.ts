@@ -41,40 +41,48 @@ export class AdminService {
     };
   }
 
+  // สร้างร้าน + staff คนแรก ภายใน transaction ที่ส่งเข้ามา (reuse ได้ทั้ง createShop และ approve คำขอ)
+  private async createShopAndStaff(
+    tx: Prisma.TransactionClient,
+    dto: CreateShopDto,
+  ) {
+    const passwordHash = await bcrypt.hash(dto.staffPassword, 10);
+    const shop = await tx.shop.create({
+      data: { name: dto.shopName, slug: dto.slug },
+    });
+    const staff = await tx.staff.create({
+      data: { shopId: shop.id, username: dto.staffUsername, passwordHash },
+    });
+    return {
+      shop,
+      staff: { id: staff.id, username: staff.username, shopId: shop.id },
+    };
+  }
+
+  // แปลง P2002 (unique constraint) เป็นข้อความ slug/username ซ้ำ
+  private rethrowShopConflict(err: unknown): never {
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === 'P2002'
+    ) {
+      const target = (err.meta?.target as string[] | undefined)?.join(', ');
+      throw new ConflictException(
+        target?.includes('slug')
+          ? 'slug นี้ถูกใช้แล้ว'
+          : 'ชื่อผู้ใช้นี้ถูกใช้แล้ว',
+      );
+    }
+    throw err;
+  }
+
   // สร้างร้านใหม่ + staff คนแรกของร้าน ในทรานแซกชันเดียว
   async createShop(dto: CreateShopDto) {
     try {
-      const passwordHash = await bcrypt.hash(dto.staffPassword, 10);
-      return await this.prisma.$transaction(async (tx) => {
-        const shop = await tx.shop.create({
-          data: { name: dto.shopName, slug: dto.slug },
-        });
-        const staff = await tx.staff.create({
-          data: {
-            shopId: shop.id,
-            username: dto.staffUsername,
-            passwordHash,
-          },
-        });
-        return {
-          shop,
-          staff: { id: staff.id, username: staff.username, shopId: shop.id },
-        };
-      });
+      return await this.prisma.$transaction((tx) =>
+        this.createShopAndStaff(tx, dto),
+      );
     } catch (err) {
-      // P2002 = unique constraint (slug หรือ username ซ้ำ)
-      if (
-        err instanceof Prisma.PrismaClientKnownRequestError &&
-        err.code === 'P2002'
-      ) {
-        const target = (err.meta?.target as string[] | undefined)?.join(', ');
-        throw new ConflictException(
-          target?.includes('slug')
-            ? 'slug นี้ถูกใช้แล้ว'
-            : 'ชื่อผู้ใช้นี้ถูกใช้แล้ว',
-        );
-      }
-      throw err;
+      this.rethrowShopConflict(err);
     }
   }
 
@@ -122,5 +130,54 @@ export class AdminService {
       staffCount: s._count.staff,
       tableCount: s._count.tables,
     }));
+  }
+
+  // คำขอเปิดร้านทั้งหมด — pending ก่อน แล้วเรียงใหม่สุดขึ้นก่อน
+  async listShopRequests() {
+    return this.prisma.shopRequest.findMany({
+      orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
+    });
+  }
+
+  // อนุมัติคำขอ -> สร้างร้าน + staff + ผูก createdShopId ในทรานแซกชันเดียว
+  async approveShopRequest(id: number, dto: CreateShopDto) {
+    const request = await this.prisma.shopRequest.findUnique({ where: { id } });
+    if (!request) {
+      throw new NotFoundException('ไม่พบคำขอ');
+    }
+    if (request.status !== 'pending') {
+      throw new ConflictException('คำขอนี้ถูกดำเนินการไปแล้ว');
+    }
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const result = await this.createShopAndStaff(tx, dto);
+        await tx.shopRequest.update({
+          where: { id },
+          data: {
+            status: 'approved',
+            createdShopId: result.shop.id,
+            reviewedAt: new Date(),
+          },
+        });
+        return result;
+      });
+    } catch (err) {
+      this.rethrowShopConflict(err);
+    }
+  }
+
+  // ปฏิเสธคำขอ (เก็บเหตุผลไว้ใน adminNote)
+  async rejectShopRequest(id: number, adminNote?: string) {
+    const request = await this.prisma.shopRequest.findUnique({ where: { id } });
+    if (!request) {
+      throw new NotFoundException('ไม่พบคำขอ');
+    }
+    if (request.status !== 'pending') {
+      throw new ConflictException('คำขอนี้ถูกดำเนินการไปแล้ว');
+    }
+    return this.prisma.shopRequest.update({
+      where: { id },
+      data: { status: 'rejected', adminNote, reviewedAt: new Date() },
+    });
   }
 }

@@ -41,6 +41,12 @@ enum ServiceRequestStatus {
   acknowledged
 }
 
+enum ShopRequestStatus {
+  pending
+  approved
+  rejected
+}
+
 // ผู้ดูแลแพลตฟอร์ม (เจ้าของระบบ SaaS) — อยู่เหนือทุกร้าน ใช้สร้าง/จัดการร้าน
 // แยกจาก Staff โดยสิ้นเชิง (ไม่ผูก shopId) login คนละ cookie/endpoint
 model PlatformAdmin {
@@ -174,6 +180,24 @@ model Staff {
 
   @@index([shopId])
   @@map("staff")
+}
+
+// คำขอเปิดร้าน (onboarding) — ร้านค้าส่งคำขอจากหน้า public, platform admin อนุมัติ/ปฏิเสธ
+// ไม่เก็บ slug/login ในคำขอ — admin เป็นคนกำหนดตอน approve (slug ต้อง unique)
+model ShopRequest {
+  id            Int               @id @default(autoincrement())
+  shopName      String            @map("shop_name")
+  contactName   String            @map("contact_name") // ชื่อผู้ติดต่อ
+  phone         String // เบอร์ติดต่อกลับ
+  note          String? // รายละเอียดเพิ่มเติมจากร้าน
+  status        ShopRequestStatus @default(pending)
+  adminNote     String?           @map("admin_note") // เหตุผล reject / หมายเหตุ admin
+  createdShopId Int?              @map("created_shop_id") // ร้านที่สร้างหลัง approve
+  createdAt     DateTime          @default(now()) @map("created_at")
+  reviewedAt    DateTime?         @map("reviewed_at") // เวลา admin กดอนุมัติ/ปฏิเสธ
+
+  @@index([status])
+  @@map("shop_requests")
 }
 
 model ServiceRequest {

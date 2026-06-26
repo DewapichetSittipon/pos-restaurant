@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { login } from '../services/staffApi';
 import { useStaffStore } from '../store/staffStore';
 
@@ -56,6 +56,12 @@ export function LoginPage() {
         >
           {submitting ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}
         </button>
+        <p className="text-center text-sm text-slate-500">
+          ยังไม่มีร้าน?{' '}
+          <Link to="/request-shop" className="font-medium text-indigo-600">
+            ขอเปิดร้านใหม่
+          </Link>
+        </p>
       </form>
     </div>
   );
