@@ -44,6 +44,14 @@ export async function openTable(tableId: number): Promise<OpenTableResult> {
   return data;
 }
 
+// พนักงานคีย์ออเดอร์ให้โต๊ะ (เพิ่มรายการเข้าบิลที่เปิดอยู่)
+export async function addStaffOrder(
+  tableId: number,
+  items: { menuId: number; quantity: number }[],
+): Promise<void> {
+  await api.post('/orders/staff', { tableId, items });
+}
+
 export async function checkoutTable(tableId: number): Promise<CheckoutResult> {
   const { data } = await api.post<CheckoutResult>(`/tables/${tableId}/checkout`);
   return data;

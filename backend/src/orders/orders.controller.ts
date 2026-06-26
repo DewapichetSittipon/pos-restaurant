@@ -11,6 +11,7 @@ import {
 import type { Bill, Table } from '@prisma/client';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { StaffOrderDto } from './dto/staff-order.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import { CustomerTokenGuard } from '../auth/customer-token.guard';
 import { CurrentBill } from '../auth/current-bill.decorator';
@@ -30,6 +31,13 @@ export class OrdersController {
     @Body() dto: CreateOrderDto,
   ) {
     return this.orders.create(bill.shopId, bill.id, dto.items);
+  }
+
+  // พนักงานคีย์ออเดอร์ให้โต๊ะ (resolve บิลที่เปิดอยู่จาก tableId)
+  @Post('staff')
+  @UseGuards(JwtAuthGuard, ActiveShopGuard)
+  createByStaff(@CurrentShop() shopId: number, @Body() dto: StaffOrderDto) {
+    return this.orders.createByStaff(shopId, dto.tableId, dto.items);
   }
 
   // คิวครัว (queued + cooking ของร้านนี้)

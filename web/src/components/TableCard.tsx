@@ -7,6 +7,7 @@ interface TableCardProps {
   onCheckout: (tableId: number) => void;
   onAck: (serviceRequestId: number) => void;
   onShowQr: (table: TableGridItem) => void;
+  onAddItems: (table: TableGridItem) => void;
 }
 
 const SR_LABEL: Record<string, string> = {
@@ -27,7 +28,14 @@ function chairs(count: number, cls: string) {
   ));
 }
 
-export function TableCard({ table, onOpen, onCheckout, onAck, onShowQr }: TableCardProps) {
+export function TableCard({
+  table,
+  onOpen,
+  onCheckout,
+  onAck,
+  onShowQr,
+  onAddItems,
+}: TableCardProps) {
   const bill = table.bills[0]; // มีได้ทีละหนึ่งบิล pending
   const requests = bill?.serviceRequests ?? [];
   const occupied = table.status === 'occupied';
@@ -110,21 +118,30 @@ export function TableCard({ table, onOpen, onCheckout, onAck, onShowQr }: TableC
 
       {/* ปุ่มจัดการ */}
       {occupied ? (
-        <div className="flex w-full gap-2">
+        <div className="flex w-full flex-col gap-2">
           <button
             type="button"
-            onClick={() => onShowQr(table)}
-            className="flex-1 rounded-lg border border-indigo-200 bg-white py-2 text-sm font-semibold text-indigo-700"
+            onClick={() => onAddItems(table)}
+            className="w-full rounded-lg bg-indigo-600 py-2 text-sm font-semibold text-white"
           >
-            ดู QR
+            + เพิ่มรายการ
           </button>
-          <button
-            type="button"
-            onClick={() => onCheckout(table.id)}
-            className="flex-1 rounded-lg bg-slate-800 py-2 text-sm font-semibold text-white"
-          >
-            เช็คบิล
-          </button>
+          <div className="flex w-full gap-2">
+            <button
+              type="button"
+              onClick={() => onShowQr(table)}
+              className="flex-1 rounded-lg border border-indigo-200 bg-white py-2 text-sm font-semibold text-indigo-700"
+            >
+              ดู QR
+            </button>
+            <button
+              type="button"
+              onClick={() => onCheckout(table.id)}
+              className="flex-1 rounded-lg bg-slate-800 py-2 text-sm font-semibold text-white"
+            >
+              เช็คบิล
+            </button>
+          </div>
         </div>
       ) : (
         <button

@@ -70,6 +70,21 @@ export class OrdersService {
     return payload;
   }
 
+  // พนักงานคีย์ออเดอร์ให้โต๊ะ (walk-in / สั่งปากเปล่า) — resolve บิลที่เปิดอยู่ของโต๊ะ
+  // แล้ว reuse logic เดียวกับฝั่งลูกค้า (หักสต็อก + snapshot + push)
+  async createByStaff(shopId: number, tableId: number, items: OrderLineDto[]) {
+    const bill = await this.prisma.bill.findFirst({
+      where: { tableId, shopId, status: 'pending' },
+      select: { id: true },
+    });
+    if (!bill) {
+      throw new NotFoundException(
+        'โต๊ะนี้ยังไม่ได้เปิด กรุณาเปิดโต๊ะก่อนเพิ่มรายการ',
+      );
+    }
+    return this.create(shopId, bill.id, items);
+  }
+
   // คิวครัว: รายการของบิลที่ยังเปิดอยู่ของร้านนี้ (ยกเว้น voided) เรียงตามเวลา
   // รวม served ไว้เพื่อโชว์เวลาเสิร์ฟจนกว่าจะเช็คบิล
   activeQueue(shopId: number) {

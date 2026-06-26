@@ -14,6 +14,7 @@ import type { TableGridItem } from '../type/staff';
 import { TableCard } from '../components/TableCard';
 import { QrModal } from '../components/QrModal';
 import { CheckoutConfirmModal } from '../components/CheckoutConfirmModal';
+import { AddItemsModal } from '../components/AddItemsModal';
 
 interface QrTarget {
   tableNumber: string;
@@ -38,6 +39,10 @@ export function AdminGridPage() {
   const [qr, setQr] = useState<QrTarget | null>(null);
   const [checkout, setCheckout] = useState<CheckoutTarget | null>(null);
   const [checkingOut, setCheckingOut] = useState(false);
+  const [addItems, setAddItems] = useState<{
+    tableId: number;
+    tableNumber: string;
+  } | null>(null);
   const push = useToastStore((s) => s.push);
 
   const reload = useCallback(() => {
@@ -105,6 +110,17 @@ export function AdminGridPage() {
     setQr({ tableNumber: table.tableNumber, url });
   }
 
+  function handleAddItems(table: TableGridItem): void {
+    setAddItems({ tableId: table.id, tableNumber: table.tableNumber });
+  }
+
+  // เพิ่มรายการสำเร็จ -> ปิด modal + reload (socket OrderCreated ก็ reload เช่นกัน)
+  function handleAdded(count: number): void {
+    setAddItems(null);
+    push(`เพิ่ม ${count} รายการแล้ว`, 'success');
+    reload();
+  }
+
   async function handleAck(srId: number): Promise<void> {
     try {
       await ackServiceRequest(srId);
@@ -127,6 +143,7 @@ export function AdminGridPage() {
             onCheckout={handleCheckout}
             onAck={handleAck}
             onShowQr={handleShowQr}
+            onAddItems={handleAddItems}
           />
         ))}
       </div>
@@ -146,6 +163,15 @@ export function AdminGridPage() {
           busy={checkingOut}
           onConfirm={confirmCheckout}
           onCancel={() => setCheckout(null)}
+        />
+      )}
+
+      {addItems && (
+        <AddItemsModal
+          tableId={addItems.tableId}
+          tableNumber={addItems.tableNumber}
+          onClose={() => setAddItems(null)}
+          onAdded={handleAdded}
         />
       )}
     </div>
