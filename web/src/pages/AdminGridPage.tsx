@@ -176,11 +176,18 @@ export function AdminGridPage() {
           vacantTables={tables
             .filter((t) => t.status === 'vacant')
             .map((t) => ({ id: t.id, tableNumber: t.tableNumber }))}
+          occupiedTables={tables
+            .filter((t) => t.status === 'occupied' && t.id !== billModal.tableId)
+            .map((t) => ({ id: t.id, tableNumber: t.tableNumber }))}
           onClose={() => {
             setBillModal(null);
             reload(); // อัปเดตยอดในผังโต๊ะหลังปิด
           }}
           onTransferred={() => {
+            setBillModal(null);
+            reload();
+          }}
+          onMerged={() => {
             setBillModal(null);
             reload();
           }}

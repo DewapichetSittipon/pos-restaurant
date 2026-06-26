@@ -93,6 +93,19 @@ export interface TopMenusReport {
   menus: TopMenuRow[];
 }
 
+export interface PrepTimeRow {
+  itemName: string;
+  avgSec: number; // เวลาเฉลี่ยจากสั่ง→เสิร์ฟ (วินาที)
+  count: number;
+}
+
+export interface PrepTimesReport {
+  date: string;
+  servedCount: number;
+  overallAvgSec: number;
+  menus: PrepTimeRow[];
+}
+
 export interface BillDetailItem {
   id: number;
   itemName: string;

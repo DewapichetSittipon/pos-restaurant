@@ -129,6 +129,55 @@ export class TablesService {
     });
   }
 
+  // รวมบิล: ย้ายรายการ/คำขอจากบิลโต๊ะต้นทาง มารวมที่บิลโต๊ะปลายทาง (:toTableId)
+  // ใช้เคสลูกค้ากลุ่มเดียวนั่งหลายโต๊ะแล้วจ่ายรวม — ทั้งสองโต๊ะต้องมีบิลเปิดอยู่
+  async mergeBills(shopId: number, toTableId: number, fromTableId: number) {
+    if (fromTableId === toTableId) {
+      throw new ConflictException('เป็นโต๊ะเดียวกัน');
+    }
+    return this.prisma.$transaction(async (tx) => {
+      const toBill = await tx.bill.findFirst({
+        where: { tableId: toTableId, shopId, status: 'pending' },
+      });
+      if (!toBill) {
+        throw new NotFoundException('ไม่พบบิลที่เปิดอยู่ของโต๊ะปลายทาง');
+      }
+      const fromBill = await tx.bill.findFirst({
+        where: { tableId: fromTableId, shopId, status: 'pending' },
+      });
+      if (!fromBill) {
+        throw new NotFoundException('ไม่พบบิลที่เปิดอยู่ของโต๊ะต้นทาง');
+      }
+
+      // ย้ายรายการอาหาร + คำขอบริการ ไปอยู่ใต้บิลปลายทาง
+      await tx.orderItem.updateMany({
+        where: { billId: fromBill.id },
+        data: { billId: toBill.id },
+      });
+      await tx.serviceRequest.updateMany({
+        where: { billId: fromBill.id },
+        data: { billId: toBill.id },
+      });
+
+      // ปิดบิลต้นทาง (ว่างเปล่าแล้ว) + โต๊ะต้นทางกลับเป็นว่าง
+      await tx.bill.delete({ where: { id: fromBill.id } });
+      await tx.table.update({
+        where: { id: fromTableId },
+        data: { status: 'vacant' },
+      });
+
+      // แจ้งจอลูกค้าโต๊ะต้นทางว่าบิลปิดแล้ว + ให้ทุกอุปกรณ์ในร้านรีโหลดผัง
+      this.events.emitToTable(fromBill.id, SocketEvent.BillClosed, {
+        billId: fromBill.id,
+      });
+      this.events.emitToShop(shopId, SocketEvent.TableOpened, {
+        tableId: toTableId,
+        billId: toBill.id,
+      });
+      return { ok: true };
+    });
+  }
+
   // รายการของบิลที่เปิดอยู่ของโต๊ะ (ฝั่งพนักงาน) — scope ด้วย shopId, รวมสถานะแต่ละรายการ
   async getCurrentBill(shopId: number, tableId: number) {
     const bill = await this.prisma.bill.findFirst({

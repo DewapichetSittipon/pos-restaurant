@@ -7,6 +7,7 @@ import type {
   CheckoutResult,
   EodReport,
   OpenTableResult,
+  PrepTimesReport,
   Staff,
   StaffMember,
   StaffRole,
@@ -102,6 +103,14 @@ export async function transferBill(
   await api.post(`/tables/${fromTableId}/transfer`, { toTableId });
 }
 
+// รวมบิลโต๊ะต้นทางเข้ากับโต๊ะปลายทาง (toTableId = โต๊ะที่เก็บไว้)
+export async function mergeBill(
+  toTableId: number,
+  fromTableId: number,
+): Promise<void> {
+  await api.post(`/tables/${toTableId}/merge`, { fromTableId });
+}
+
 export async function checkoutTable(
   tableId: number,
   payload: CheckoutPayload,
@@ -148,6 +157,13 @@ export async function fetchEod(date?: string): Promise<EodReport> {
 
 export async function fetchTopMenus(date?: string): Promise<TopMenusReport> {
   const { data } = await api.get<TopMenusReport>('/reports/top-menus', {
+    params: date ? { date } : undefined,
+  });
+  return data;
+}
+
+export async function fetchPrepTimes(date?: string): Promise<PrepTimesReport> {
+  const { data } = await api.get<PrepTimesReport>('/reports/prep-times', {
     params: date ? { date } : undefined,
   });
   return data;

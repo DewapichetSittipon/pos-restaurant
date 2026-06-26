@@ -88,6 +88,64 @@ export class ReportsService {
     };
   }
 
+  // เวลาเตรียมอาหารเฉลี่ย — จากรายการที่เสิร์ฟแล้วในวันนั้น (servedAt - createdAt)
+  // ช่วยให้เจ้าของร้านเห็นว่าเมนูไหนทำช้า/ครัวคอขวดช่วงไหน
+  async prepTimes(shopId: number, dateStr?: string) {
+    const date = dateStr ?? this.bangkokToday();
+    const start = new Date(`${date}T00:00:00+07:00`);
+    if (Number.isNaN(start.getTime())) {
+      throw new BadRequestException('รูปแบบวันที่ไม่ถูกต้อง (YYYY-MM-DD)');
+    }
+    const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+
+    const items = await this.prisma.orderItem.findMany({
+      where: {
+        status: 'served',
+        servedAt: { gte: start, lt: end },
+        bill: { shopId },
+      },
+      select: { itemName: true, createdAt: true, servedAt: true },
+    });
+
+    const map = new Map<
+      string,
+      { itemName: string; totalSec: number; count: number }
+    >();
+    let grandTotal = 0;
+    let grandCount = 0;
+    for (const it of items) {
+      if (!it.servedAt) continue;
+      const sec = Math.max(
+        0,
+        Math.round((it.servedAt.getTime() - it.createdAt.getTime()) / 1000),
+      );
+      const row = map.get(it.itemName) ?? {
+        itemName: it.itemName,
+        totalSec: 0,
+        count: 0,
+      };
+      row.totalSec += sec;
+      row.count += 1;
+      map.set(it.itemName, row);
+      grandTotal += sec;
+      grandCount += 1;
+    }
+
+    return {
+      date,
+      servedCount: grandCount,
+      overallAvgSec: grandCount ? Math.round(grandTotal / grandCount) : 0,
+      // เรียงเมนูที่ใช้เวลาเฉลี่ยนานสุดก่อน
+      menus: [...map.values()]
+        .map((r) => ({
+          itemName: r.itemName,
+          avgSec: Math.round(r.totalSec / r.count),
+          count: r.count,
+        }))
+        .sort((a, b) => b.avgSec - a.avgSec),
+    };
+  }
+
   // รายละเอียดบิลย้อนหลัง — รายการเมนูที่สั่ง จัดกลุ่มตามหมวด (scope ตามร้าน)
   // ไม่นับรายการที่ถูกยกเลิก (voided) เพื่อให้ยอดตรงกับยอดบิล
   async billDetail(shopId: number, billId: number) {

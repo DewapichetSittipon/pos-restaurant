@@ -12,6 +12,7 @@ import { TablesService } from './tables.service';
 import { CreateTableDto } from './dto/create-table.dto';
 import { CheckoutDto } from './dto/checkout.dto';
 import { TransferBillDto } from './dto/transfer-bill.dto';
+import { MergeBillDto } from './dto/merge-bill.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ActiveShopGuard } from '../auth/active-shop.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -68,6 +69,17 @@ export class TablesController {
     @Body() dto: TransferBillDto,
   ) {
     return this.tables.transferBill(shopId, id, dto.toTableId);
+  }
+
+  // รวมบิลโต๊ะต้นทาง (body.fromTableId) เข้ากับโต๊ะนี้ (:id = ปลายทาง)
+  @Post(':id/merge')
+  @Roles('OWNER', 'WAITER')
+  merge(
+    @CurrentShop() shopId: number,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: MergeBillDto,
+  ) {
+    return this.tables.mergeBills(shopId, id, dto.fromTableId);
   }
 
   @Post(':id/checkout')

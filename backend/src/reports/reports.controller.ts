@@ -32,6 +32,12 @@ export class ReportsController {
     return this.reports.topMenus(shopId, date);
   }
 
+  // GET /api/reports/prep-times?date=YYYY-MM-DD — เวลาเตรียมอาหารเฉลี่ยต่อเมนู
+  @Get('prep-times')
+  prepTimes(@CurrentShop() shopId: number, @Query('date') date?: string) {
+    return this.reports.prepTimes(shopId, date);
+  }
+
   // GET /api/reports/bills/:id — รายการเมนูของบิลย้อนหลัง จัดกลุ่มตามหมวด
   @Get('bills/:id')
   billDetail(

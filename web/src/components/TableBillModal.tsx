@@ -3,6 +3,7 @@ import { fetchCatalog } from '../services/manageApi';
 import {
   addStaffOrder,
   fetchTableBill,
+  mergeBill,
   transferBill,
 } from '../services/staffApi';
 import { useToastStore } from '../store/toastStore';
@@ -15,16 +16,20 @@ interface TableBillModalProps {
   tableId: number;
   tableNumber: string;
   vacantTables: { id: number; tableNumber: string }[];
+  occupiedTables: { id: number; tableNumber: string }[];
   onClose: () => void;
   onTransferred: () => void;
+  onMerged: () => void;
 }
 
 export function TableBillModal({
   tableId,
   tableNumber,
   vacantTables,
+  occupiedTables,
   onClose,
   onTransferred,
+  onMerged,
 }: TableBillModalProps) {
   const push = useToastStore((s) => s.push);
   const [bill, setBill] = useState<TableBill | null>(null);
@@ -36,6 +41,8 @@ export function TableBillModal({
   const [error, setError] = useState<string | null>(null);
   const [showTransfer, setShowTransfer] = useState(false);
   const [transferring, setTransferring] = useState(false);
+  const [showMerge, setShowMerge] = useState(false);
+  const [merging, setMerging] = useState(false);
 
   async function handleTransfer(toTableId: number): Promise<void> {
     setTransferring(true);
@@ -46,6 +53,19 @@ export function TableBillModal({
     } catch {
       push('ย้ายโต๊ะไม่สำเร็จ', 'error');
       setTransferring(false);
+    }
+  }
+
+  // รวมบิลโต๊ะอื่นเข้ากับโต๊ะนี้ (โต๊ะนี้เป็นปลายทางที่เก็บไว้)
+  async function handleMerge(fromTableId: number): Promise<void> {
+    setMerging(true);
+    try {
+      await mergeBill(tableId, fromTableId);
+      push('รวมบิลแล้ว', 'success');
+      onMerged();
+    } catch {
+      push('รวมบิลไม่สำเร็จ', 'error');
+      setMerging(false);
     }
   }
 
@@ -116,7 +136,20 @@ export function TableBillModal({
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => setShowTransfer((v) => !v)}
+              onClick={() => {
+                setShowMerge((v) => !v);
+                setShowTransfer(false);
+              }}
+              className="text-sm font-medium text-indigo-600"
+            >
+              รวมบิล
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowTransfer((v) => !v);
+                setShowMerge(false);
+              }}
               className="text-sm font-medium text-indigo-600"
             >
               ย้ายโต๊ะ
@@ -130,6 +163,32 @@ export function TableBillModal({
             </button>
           </div>
         </header>
+
+        {/* รวมบิลจากโต๊ะอื่น (โต๊ะที่มีลูกค้า) เข้าโต๊ะนี้ */}
+        {showMerge && (
+          <div className="border-b border-slate-200 bg-amber-50 px-5 py-3">
+            <p className="mb-2 text-sm font-medium text-slate-600">
+              รวมบิลจากโต๊ะ (ย้ายรายการมารวมที่โต๊ะ {tableNumber}):
+            </p>
+            {occupiedTables.length === 0 ? (
+              <p className="text-sm text-slate-400">ไม่มีโต๊ะอื่นที่มีลูกค้า</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {occupiedTables.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => handleMerge(t.id)}
+                    disabled={merging}
+                    className="rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-amber-700 ring-1 ring-amber-200 disabled:opacity-50"
+                  >
+                    โต๊ะ {t.tableNumber}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ตัวเลือกย้ายไปโต๊ะว่าง */}
         {showTransfer && (
