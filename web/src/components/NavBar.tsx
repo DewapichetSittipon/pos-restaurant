@@ -33,23 +33,37 @@ export function NavBar() {
       pathname === path ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
     }`;
 
+  // เมนูที่แต่ละบทบาทเห็น: OWNER เห็นครบ, WAITER เห็นแค่ผังโต๊ะ, KITCHEN เห็นแค่ครัว
+  const role = staff?.role;
+  const showTables = role === 'OWNER' || role === 'WAITER';
+  const showKitchen = role === 'OWNER' || role === 'KITCHEN';
+  const showOwnerOnly = role === 'OWNER';
+
   return (
     <nav className="sticky top-0 z-30 flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
       <div className="flex items-center gap-1">
-        <Link to="/admin" className={linkClass('/admin')}>
-          ผังโต๊ะ
-          <NotiDot count={serviceCount} />
-        </Link>
-        <Link to="/kitchen" className={linkClass('/kitchen')}>
-          ครัว
-          <NotiDot count={orderCount} />
-        </Link>
-        <Link to="/admin/report" className={linkClass('/admin/report')}>
-          ยอดขาย
-        </Link>
-        <Link to="/admin/manage" className={linkClass('/admin/manage')}>
-          จัดการร้าน
-        </Link>
+        {showTables && (
+          <Link to="/admin" className={linkClass('/admin')}>
+            ผังโต๊ะ
+            <NotiDot count={serviceCount} />
+          </Link>
+        )}
+        {showKitchen && (
+          <Link to="/kitchen" className={linkClass('/kitchen')}>
+            ครัว
+            <NotiDot count={orderCount} />
+          </Link>
+        )}
+        {showOwnerOnly && (
+          <Link to="/admin/report" className={linkClass('/admin/report')}>
+            ยอดขาย
+          </Link>
+        )}
+        {showOwnerOnly && (
+          <Link to="/admin/manage" className={linkClass('/admin/manage')}>
+            จัดการร้าน
+          </Link>
+        )}
       </div>
       <div className="flex items-center gap-3 text-sm">
         <span className="text-slate-500">{staff?.username}</span>

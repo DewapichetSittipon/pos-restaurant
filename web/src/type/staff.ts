@@ -32,10 +32,14 @@ export interface CheckoutPayload {
   receivedAmount?: number; // สตางค์ (เงินสด)
 }
 
+// บทบาทพนักงานในร้าน (ตรงกับ enum StaffRole ฝั่ง backend)
+export type StaffRole = 'OWNER' | 'WAITER' | 'KITCHEN';
+
 export interface Staff {
   id: number;
   username: string;
   shopId: number; // tenant ของพนักงาน
+  role: StaffRole; // OWNER เห็นทุกหน้า, WAITER เห็นผังโต๊ะ, KITCHEN เห็นครัว
   shopStatus: 'pending' | 'active'; // pending = รออนุมัติ ใช้งานไม่ได้
 }
 
@@ -43,6 +47,7 @@ export interface Staff {
 export interface StaffMember {
   id: number;
   username: string;
+  role: StaffRole;
 }
 
 // โต๊ะ + บิล pending (พร้อม service request) สำหรับ grid หลังบ้าน

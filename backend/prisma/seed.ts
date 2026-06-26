@@ -73,12 +73,13 @@ async function seedShop(opts: {
     ],
   });
 
-  // --- พนักงาน (ไม่มี role แล้ว — staff คนไหนของร้านก็เข้าได้ทุกหน้า) ---
+  // --- พนักงาน: คนแรกของร้าน = เจ้าของร้าน (OWNER) เห็นทุกหน้า ---
   await prisma.staff.create({
     data: {
       shopId: shop.id,
       username: opts.username,
       passwordHash: await bcrypt.hash(opts.password, 10),
+      role: 'OWNER',
     },
   });
 }

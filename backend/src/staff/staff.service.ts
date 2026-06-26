@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, StaffRole } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -17,17 +17,22 @@ export class StaffService {
     return this.prisma.staff.findMany({
       where: { shopId },
       orderBy: { id: 'asc' },
-      select: { id: true, username: true },
+      select: { id: true, username: true, role: true },
     });
   }
 
   // เพิ่มพนักงานใหม่ในร้านตัวเอง
-  async createStaff(shopId: number, username: string, password: string) {
+  async createStaff(
+    shopId: number,
+    username: string,
+    password: string,
+    role: StaffRole,
+  ) {
     try {
       const passwordHash = await bcrypt.hash(password, 10);
       const staff = await this.prisma.staff.create({
-        data: { shopId, username, passwordHash },
-        select: { id: true, username: true },
+        data: { shopId, username, passwordHash, role },
+        select: { id: true, username: true, role: true },
       });
       return staff;
     } catch (err) {
@@ -42,7 +47,7 @@ export class StaffService {
     }
   }
 
-  // ลบพนักงาน — ห้ามลบตัวเอง และห้ามลบคนสุดท้าย (ไม่งั้นร้านจะ login ไม่ได้)
+  // ลบพนักงาน — ห้ามลบตัวเอง และห้ามลบ OWNER คนสุดท้าย (ไม่งั้นร้านจะไม่มีคนคุม)
   async deleteStaff(shopId: number, staffId: number, currentStaffId: number) {
     if (staffId === currentStaffId) {
       throw new BadRequestException('ลบบัญชีตัวเองไม่ได้');
@@ -53,9 +58,13 @@ export class StaffService {
     if (!staff) {
       throw new NotFoundException('ไม่พบพนักงาน');
     }
-    const count = await this.prisma.staff.count({ where: { shopId } });
-    if (count <= 1) {
-      throw new BadRequestException('ต้องมีพนักงานอย่างน้อย 1 คน');
+    if (staff.role === 'OWNER') {
+      const ownerCount = await this.prisma.staff.count({
+        where: { shopId, role: 'OWNER' },
+      });
+      if (ownerCount <= 1) {
+        throw new BadRequestException('ต้องมีเจ้าของร้านอย่างน้อย 1 คน');
+      }
     }
     await this.prisma.staff.delete({ where: { id: staffId } });
     return { ok: true };

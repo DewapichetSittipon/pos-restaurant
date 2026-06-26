@@ -18,6 +18,8 @@ import { CustomerTokenGuard } from '../auth/customer-token.guard';
 import { CurrentBill } from '../auth/current-bill.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ActiveShopGuard } from '../auth/active-shop.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
 import { CurrentShop } from '../auth/current-shop.decorator';
 
 @Controller('orders')
@@ -36,21 +38,24 @@ export class OrdersController {
 
   // พนักงานคีย์ออเดอร์ให้โต๊ะ (resolve บิลที่เปิดอยู่จาก tableId)
   @Post('staff')
-  @UseGuards(JwtAuthGuard, ActiveShopGuard)
+  @UseGuards(JwtAuthGuard, ActiveShopGuard, RolesGuard)
+  @Roles('OWNER', 'WAITER')
   createByStaff(@CurrentShop() shopId: number, @Body() dto: StaffOrderDto) {
     return this.orders.createByStaff(shopId, dto.tableId, dto.items);
   }
 
   // คิวครัว (queued + cooking ของร้านนี้)
   @Get('active')
-  @UseGuards(JwtAuthGuard, ActiveShopGuard)
+  @UseGuards(JwtAuthGuard, ActiveShopGuard, RolesGuard)
+  @Roles('OWNER', 'KITCHEN')
   active(@CurrentShop() shopId: number) {
     return this.orders.activeQueue(shopId);
   }
 
-  // staff เปลี่ยนสถานะอาหาร
+  // staff เปลี่ยนสถานะอาหาร (ครัว)
   @Patch(':id/status')
-  @UseGuards(JwtAuthGuard, ActiveShopGuard)
+  @UseGuards(JwtAuthGuard, ActiveShopGuard, RolesGuard)
+  @Roles('OWNER', 'KITCHEN')
   updateStatus(
     @CurrentShop() shopId: number,
     @Param('id', ParseIntPipe) id: number,
@@ -59,9 +64,10 @@ export class OrdersController {
     return this.orders.updateStatus(shopId, id, dto.status);
   }
 
-  // ยกเลิก (void) รายการอาหาร พร้อมเหตุผล
+  // ยกเลิก (void) รายการอาหาร พร้อมเหตุผล (หน้าโต๊ะ)
   @Post(':id/void')
-  @UseGuards(JwtAuthGuard, ActiveShopGuard)
+  @UseGuards(JwtAuthGuard, ActiveShopGuard, RolesGuard)
+  @Roles('OWNER', 'WAITER')
   voidItem(
     @CurrentShop() shopId: number,
     @Param('id', ParseIntPipe) id: number,

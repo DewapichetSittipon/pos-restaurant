@@ -43,6 +43,7 @@ export class JwtAuthGuard implements CanActivate {
         id: true,
         username: true,
         shopId: true,
+        role: true,
         shop: { select: { status: true } },
       },
     });
@@ -56,6 +57,7 @@ export class JwtAuthGuard implements CanActivate {
       sub: staff.id,
       username: staff.username,
       shopId: staff.shopId,
+      role: staff.role,
       shopStatus: staff.shop.status,
     };
     return true;

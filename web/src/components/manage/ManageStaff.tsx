@@ -8,7 +8,8 @@ import {
 } from '../../services/staffApi';
 import { useStaffStore } from '../../store/staffStore';
 import { useToastStore } from '../../store/toastStore';
-import type { StaffMember } from '../../type/staff';
+import type { StaffMember, StaffRole } from '../../type/staff';
+import { ROLE_LABEL } from '../../lib/roles';
 
 function errMsg(err: unknown, fallback: string): string {
   return axios.isAxiosError(err) && err.response?.data?.message
@@ -22,6 +23,7 @@ export function ManageStaff() {
   const [list, setList] = useState<StaffMember[]>([]);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState<StaffRole>('WAITER');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,10 +54,11 @@ export function ManageStaff() {
     }
     setBusy(true);
     try {
-      await createStaff(username.trim(), password);
+      await createStaff(username.trim(), password, role);
       push(`เพิ่มพนักงาน "${username.trim()}" แล้ว`, 'success');
       setUsername('');
       setPassword('');
+      setRole('WAITER');
       reload();
     } catch (err) {
       setError(errMsg(err, 'เพิ่มพนักงานไม่สำเร็จ'));
@@ -121,6 +124,15 @@ export function ManageStaff() {
           placeholder="รหัสผ่าน (อย่างน้อย 6 ตัวอักษร)"
           className="w-full rounded-lg border border-slate-300 px-3 py-2.5"
         />
+        <select
+          value={role}
+          onChange={(e) => setRole(e.target.value as StaffRole)}
+          className="w-full rounded-lg border border-slate-300 px-3 py-2.5"
+        >
+          <option value="WAITER">{ROLE_LABEL.WAITER} (เห็นแค่ผังโต๊ะ)</option>
+          <option value="KITCHEN">{ROLE_LABEL.KITCHEN} (เห็นแค่หน้าครัว)</option>
+          <option value="OWNER">{ROLE_LABEL.OWNER} (เห็นทุกอย่าง)</option>
+        </select>
         {error && <p className="text-sm text-rose-600">{error}</p>}
         <button
           type="submit"
@@ -140,6 +152,9 @@ export function ManageStaff() {
               <div className="flex items-center justify-between gap-2">
                 <span className="font-medium">
                   {member.username}
+                  <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
+                    {ROLE_LABEL[member.role]}
+                  </span>
                   {member.id === myId && (
                     <span className="ml-2 rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-700">
                       คุณ

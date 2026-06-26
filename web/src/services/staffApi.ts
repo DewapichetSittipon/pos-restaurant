@@ -9,6 +9,7 @@ import type {
   OpenTableResult,
   Staff,
   StaffMember,
+  StaffRole,
   TableBill,
   TableGridItem,
   TopMenusReport,
@@ -48,8 +49,13 @@ export async function fetchStaff(): Promise<StaffMember[]> {
 export async function createStaff(
   username: string,
   password: string,
+  role: StaffRole,
 ): Promise<StaffMember> {
-  const { data } = await api.post<StaffMember>('/staff', { username, password });
+  const { data } = await api.post<StaffMember>('/staff', {
+    username,
+    password,
+    role,
+  });
   return data;
 }
 

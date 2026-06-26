@@ -4,12 +4,16 @@ import { fetchMe } from '../services/staffApi';
 import { useStaffStore } from '../store/staffStore';
 import { CenterMessage } from './CenterMessage';
 import { PendingApprovalPage } from '../pages/PendingApprovalPage';
+import { homePathForRole } from '../lib/roles';
+import type { StaffRole } from '../type/staff';
 
 interface ProtectedRouteProps {
   children: ReactNode;
+  // ถ้าระบุ จะให้เข้าได้เฉพาะบทบาทเหล่านี้ (ไม่ระบุ = ทุกบทบาทที่ล็อกอินแล้ว)
+  allowedRoles?: StaffRole[];
 }
 
-export function ProtectedRoute({ children }: ProtectedRouteProps) {
+export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
   const staff = useStaffStore((s) => s.staff);
   const setStaff = useStaffStore((s) => s.setStaff);
   const [state, setState] = useState<'checking' | 'ok' | 'denied'>(
@@ -40,6 +44,10 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   if (staff?.shopStatus === 'pending') {
     return <PendingApprovalPage />;
   }
-  // staff ของร้าน active เข้าได้ทุกหน้า
+  // บทบาทไม่ตรงกับหน้านี้ — เด้งกลับหน้าแรกของบทบาทตัวเอง (กันพิมพ์ URL ตรงๆ)
+  if (staff && allowedRoles && !allowedRoles.includes(staff.role)) {
+    return <Navigate to={homePathForRole(staff.role)} replace />;
+  }
+  // staff ของร้าน active ที่บทบาทผ่าน — เข้าได้
   return <>{children}</>;
 }

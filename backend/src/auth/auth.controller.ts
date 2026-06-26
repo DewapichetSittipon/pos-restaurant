@@ -66,6 +66,7 @@ export class AuthController {
         id: staff.sub,
         username: staff.username,
         shopId: staff.shopId,
+        role: staff.role,
         shopStatus: staff.shopStatus,
       },
     };

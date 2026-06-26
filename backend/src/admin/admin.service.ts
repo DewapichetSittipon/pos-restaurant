@@ -52,7 +52,12 @@ export class AdminService {
       data: { name: dto.shopName, slug: dto.slug, status: 'active' },
     });
     const staff = await tx.staff.create({
-      data: { shopId: shop.id, username: dto.staffUsername, passwordHash },
+      data: {
+        shopId: shop.id,
+        username: dto.staffUsername,
+        passwordHash,
+        role: 'OWNER', // staff คนแรกที่ admin สร้าง = เจ้าของร้าน
+      },
     });
     return {
       shop,

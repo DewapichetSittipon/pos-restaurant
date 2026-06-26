@@ -9,10 +9,14 @@ import {
 import { ReportsService } from './reports.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ActiveShopGuard } from '../auth/active-shop.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
 import { CurrentShop } from '../auth/current-shop.decorator';
 
+// ยอดขาย/รายงาน — เฉพาะเจ้าของร้าน
 @Controller('reports')
-@UseGuards(JwtAuthGuard, ActiveShopGuard)
+@UseGuards(JwtAuthGuard, ActiveShopGuard, RolesGuard)
+@Roles('OWNER')
 export class ReportsController {
   constructor(private readonly reports: ReportsService) {}
 

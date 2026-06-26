@@ -13,6 +13,8 @@ import { CreateServiceRequestDto } from './dto/create-service-request.dto';
 import { CustomerTokenGuard } from '../auth/customer-token.guard';
 import { CurrentBill } from '../auth/current-bill.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
 import { CurrentShop } from '../auth/current-shop.decorator';
 
 @Controller('service-requests')
@@ -29,9 +31,10 @@ export class ServiceRequestsController {
     return this.service.create(bill.shopId, bill.id, dto.type);
   }
 
-  // พนักงานรับเรื่อง
+  // พนักงานรับเรื่อง (หน้าโต๊ะ)
   @Patch(':id/ack')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('OWNER', 'WAITER')
   ack(@CurrentShop() shopId: number, @Param('id', ParseIntPipe) id: number) {
     return this.service.acknowledge(shopId, id);
   }

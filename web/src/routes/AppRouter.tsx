@@ -40,7 +40,7 @@ export function AppRouter() {
           <Route
             path="/admin"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute allowedRoles={['OWNER', 'WAITER']}>
                 <AdminGridPage />
               </ProtectedRoute>
             }
@@ -48,7 +48,7 @@ export function AppRouter() {
           <Route
             path="/admin/report"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute allowedRoles={['OWNER']}>
                 <EodReportPage />
               </ProtectedRoute>
             }
@@ -56,7 +56,7 @@ export function AppRouter() {
           <Route
             path="/kitchen"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute allowedRoles={['OWNER', 'KITCHEN']}>
                 <KitchenPage />
               </ProtectedRoute>
             }
@@ -64,7 +64,7 @@ export function AppRouter() {
           <Route
             path="/admin/manage"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute allowedRoles={['OWNER']}>
                 <ManagePage />
               </ProtectedRoute>
             }

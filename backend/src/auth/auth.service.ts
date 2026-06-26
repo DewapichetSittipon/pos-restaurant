@@ -4,7 +4,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import type { ShopStatus } from '@prisma/client';
+import type { ShopStatus, StaffRole } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import type { JwtPayload } from './auth.types';
@@ -22,6 +22,7 @@ export class AuthService {
       id: number;
       username: string;
       shopId: number;
+      role: StaffRole;
       shopStatus: ShopStatus;
     };
   }> {
@@ -36,6 +37,7 @@ export class AuthService {
       sub: staff.id,
       username: staff.username,
       shopId: staff.shopId,
+      role: staff.role,
     };
     return {
       token: await this.jwt.signAsync(payload),
@@ -43,6 +45,7 @@ export class AuthService {
         id: staff.id,
         username: staff.username,
         shopId: staff.shopId,
+        role: staff.role,
         shopStatus: staff.shop.status,
       },
     };

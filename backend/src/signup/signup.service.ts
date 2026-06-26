@@ -29,6 +29,7 @@ export class SignupService {
             shopId: shop.id,
             username: dto.staffUsername,
             passwordHash,
+            role: 'OWNER', // ผู้สมัคร = เจ้าของร้าน
           },
         });
         return { ok: true };

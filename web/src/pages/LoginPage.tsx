@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { login } from '../services/staffApi';
 import { useStaffStore } from '../store/staffStore';
+import { homePathForRole } from '../lib/roles';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -18,7 +19,8 @@ export function LoginPage() {
     try {
       const staff = await login(username, password);
       setStaff(staff);
-      navigate('/admin', { replace: true });
+      // ครัวเริ่มที่หน้าครัว, ที่เหลือเริ่มที่ผังโต๊ะ
+      navigate(homePathForRole(staff.role), { replace: true });
     } catch {
       setError('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
     } finally {

@@ -52,6 +52,16 @@ enum ShopStatus {
   active
 }
 
+// บทบาทพนักงานภายในร้าน — กำหนดว่าเห็น/ทำอะไรได้บ้าง
+// OWNER = เจ้าของร้าน เห็นทุกอย่าง (จัดการร้าน/พนักงาน/ยอดขาย)
+// WAITER = พนักงานเสิร์ฟ เห็นแค่ผังโต๊ะ (เปิดโต๊ะ/รับออเดอร์/เช็คบิล)
+// KITCHEN = ครัว เห็นแค่หน้าครัว (คิว/อัปเดตสถานะอาหาร)
+enum StaffRole {
+  OWNER
+  WAITER
+  KITCHEN
+}
+
 // ผู้ดูแลแพลตฟอร์ม (เจ้าของระบบ SaaS) — อยู่เหนือทุกร้าน ใช้สร้าง/จัดการร้าน
 // แยกจาก Staff โดยสิ้นเชิง (ไม่ผูก shopId) login คนละ cookie/endpoint
 model PlatformAdmin {
@@ -188,6 +198,7 @@ model Staff {
   shopId        Int       @map("shop_id")
   username      String    @unique // unique ทั้งระบบ = login ตรงโดยไม่ต้องเลือกร้าน
   passwordHash  String    @map("password_hash")
+  role          StaffRole @default(OWNER) // staff เดิม/คนแรกของร้าน = OWNER
 
   shop Shop @relation(fields: [shopId], references: [id])
 

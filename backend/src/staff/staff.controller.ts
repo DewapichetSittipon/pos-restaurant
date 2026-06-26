@@ -13,13 +13,16 @@ import { StaffService } from './staff.service';
 import { CreateStaffDto, SetPasswordDto } from './dto/create-staff.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ActiveShopGuard } from '../auth/active-shop.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
 import { CurrentShop } from '../auth/current-shop.decorator';
 import { CurrentStaff } from '../auth/current-staff.decorator';
 import type { JwtPayload } from '../auth/auth.types';
 
-// จัดการพนักงานในร้านตัวเอง — scope ด้วย shopId ของ staff ที่ล็อกอิน
+// จัดการพนักงานในร้านตัวเอง — เฉพาะเจ้าของร้าน (OWNER) เท่านั้น
 @Controller('staff')
-@UseGuards(JwtAuthGuard, ActiveShopGuard)
+@UseGuards(JwtAuthGuard, ActiveShopGuard, RolesGuard)
+@Roles('OWNER')
 export class StaffController {
   constructor(private readonly staff: StaffService) {}
 
@@ -30,7 +33,7 @@ export class StaffController {
 
   @Post()
   create(@CurrentShop() shopId: number, @Body() dto: CreateStaffDto) {
-    return this.staff.createStaff(shopId, dto.username, dto.password);
+    return this.staff.createStaff(shopId, dto.username, dto.password, dto.role);
   }
 
   @Patch(':id/password')
