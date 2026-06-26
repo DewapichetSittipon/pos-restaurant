@@ -7,10 +7,8 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
-import { unlink } from 'node:fs/promises';
-import { join } from 'node:path';
 import { PrismaService } from '../prisma/prisma.service';
-import { UPLOADS_DIR } from '../uploads/uploads.constants';
+import { StorageService } from '../uploads/storage.service';
 import type { PlatformAdminJwtPayload } from './admin.types';
 import type { CreateShopDto } from './dto/create-shop.dto';
 
@@ -19,6 +17,7 @@ export class AdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    private readonly storage: StorageService,
   ) {}
 
   async login(username: string, password: string): Promise<{
@@ -103,15 +102,8 @@ export class AdminService {
       this.prisma.shop.delete({ where: { id: shopId } }),
     ]);
 
-    // ลบไฟล์รูปเมนูจากดิสก์ (best-effort)
-    await Promise.all(
-      menus.map((m) => {
-        const filename = m.imageUrl?.split('/').pop();
-        return filename
-          ? unlink(join(UPLOADS_DIR, 'menus', filename)).catch(() => undefined)
-          : Promise.resolve();
-      }),
-    );
+    // ลบรูปเมนูจาก Supabase Storage (best-effort)
+    await Promise.all(menus.map((m) => this.storage.remove(m.imageUrl)));
 
     return { ok: true, deletedShop: shop.name };
   }

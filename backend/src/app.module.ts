@@ -11,6 +11,7 @@ import { CategoriesModule } from './categories/categories.module';
 import { ReportsModule } from './reports/reports.module';
 import { AdminModule } from './admin/admin.module';
 import { ShopModule } from './shop/shop.module';
+import { StorageModule } from './uploads/storage.module';
 import { HealthController } from './health/health.controller';
 
 @Module({
@@ -27,6 +28,7 @@ import { HealthController } from './health/health.controller';
     ReportsModule,
     AdminModule,
     ShopModule,
+    StorageModule,
   ],
   controllers: [HealthController],
 })

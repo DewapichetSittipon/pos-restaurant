@@ -20,6 +20,12 @@ services:
         sync: false
       - key: JWT_SECRET
         sync: false
+      # Supabase Storage (เก็บรูปเมนูถาวร แทน disk ของ Render)
+      # จาก Supabase → Project Settings → API: Project URL + service_role key
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
       # อัปเดตเป็น URL ของ Cloudflare Pages หลัง frontend ขึ้น
       - key: CORS_ORIGIN
         value: "*"

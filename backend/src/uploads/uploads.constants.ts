@@ -1,8 +1,3 @@
-import { join } from 'node:path';
-
-// โฟลเดอร์เก็บไฟล์อัปโหลด (relative กับ cwd = โฟลเดอร์ backend ตอนรัน)
-export const UPLOADS_DIR = join(process.cwd(), 'uploads');
-
 // ชนิดรูปที่อนุญาต + ขนาดสูงสุด
 export const ALLOWED_IMAGE_MIME = ['image/jpeg', 'image/png', 'image/webp'];
 export const MAX_IMAGE_BYTES = 2 * 1024 * 1024; // 2MB

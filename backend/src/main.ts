@@ -2,17 +2,12 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
-import { mkdirSync } from 'node:fs';
-import { join } from 'node:path';
 import { AppModule } from './app.module';
-import { UPLOADS_DIR } from './uploads/uploads.constants';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  // เสิร์ฟรูปเมนูที่อัปโหลดไว้ ที่ /uploads/** (อยู่นอก global prefix /api)
-  mkdirSync(join(UPLOADS_DIR, 'menus'), { recursive: true });
-  app.useStaticAssets(UPLOADS_DIR, { prefix: '/uploads/' });
+  // รูปเมนูเก็บที่ Supabase Storage (imageUrl เป็น public URL เต็ม) — ไม่เสิร์ฟจาก disk แล้ว
 
   app.use(cookieParser());
   app.setGlobalPrefix('api');

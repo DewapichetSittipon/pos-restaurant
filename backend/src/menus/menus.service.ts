@@ -3,21 +3,22 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { unlink, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../uploads/storage.service';
 import type { CreateMenuDto, UpdateMenuDto } from './dto/menu.dto';
 import {
   ALLOWED_IMAGE_MIME,
   MAX_IMAGE_BYTES,
   MIME_EXT,
-  UPLOADS_DIR,
   type UploadedImageFile,
 } from '../uploads/uploads.constants';
 
 @Injectable()
 export class MenusService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageService,
+  ) {}
 
   // แคตตาล็อกเมนูของร้านหนึ่ง แยกตามหมวด (ไม่รวมเมนูที่ archived)
   // availability ฝั่ง client คำนวณจาก isAvailable && (stockCount == null || stockCount > 0)
@@ -82,7 +83,7 @@ export class MenusService {
     return { ok: true };
   }
 
-  // อัปโหลด/แทนที่รูปเมนู — เซฟไฟล์ลงดิสก์ เก็บ path ใน imageUrl
+  // อัปโหลด/แทนที่รูปเมนู — เก็บที่ Supabase Storage เก็บ public URL ใน imageUrl
   async setImage(shopId: number, id: number, file?: UploadedImageFile) {
     const menu = await this.prisma.menu.findFirst({ where: { id, shopId } });
     if (!menu) {
@@ -98,13 +99,13 @@ export class MenusService {
       throw new BadRequestException('ไฟล์ใหญ่เกิน 2MB');
     }
 
-    const filename = `${id}-${Date.now()}.${MIME_EXT[file.mimetype]}`;
-    await writeFile(join(UPLOADS_DIR, 'menus', filename), file.buffer);
-    await this.removeImageFile(menu.imageUrl); // ลบรูปเก่า (ถ้ามี)
+    const path = `menus/${id}-${Date.now()}.${MIME_EXT[file.mimetype]}`;
+    const publicUrl = await this.storage.upload(path, file.buffer, file.mimetype);
+    await this.storage.remove(menu.imageUrl); // ลบรูปเก่า (ถ้ามี)
 
     return this.prisma.menu.update({
       where: { id },
-      data: { imageUrl: `/uploads/menus/${filename}` },
+      data: { imageUrl: publicUrl },
     });
   }
 
@@ -113,19 +114,11 @@ export class MenusService {
     if (!menu) {
       throw new NotFoundException('ไม่พบเมนู');
     }
-    await this.removeImageFile(menu.imageUrl);
+    await this.storage.remove(menu.imageUrl);
     return this.prisma.menu.update({
       where: { id },
       data: { imageUrl: null },
     });
-  }
-
-  // ลบไฟล์รูปออกจากดิสก์ (best-effort — ไม่ขัดจังหวะถ้าไฟล์หายไปแล้ว)
-  private async removeImageFile(imageUrl: string | null): Promise<void> {
-    if (!imageUrl) return;
-    const filename = imageUrl.split('/').pop();
-    if (!filename) return;
-    await unlink(join(UPLOADS_DIR, 'menus', filename)).catch(() => undefined);
   }
 
   private async assertCategoryOwned(shopId: number, categoryId: number): Promise<void> {
