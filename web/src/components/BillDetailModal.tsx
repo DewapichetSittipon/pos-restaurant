@@ -20,7 +20,7 @@ export function BillDetailModal({ billId, onClose }: BillDetailModalProps) {
   async function handleReprint(): Promise<void> {
     setReprinting(true);
     try {
-      printReceipt(await fetchBillReceipt(billId));
+      await printReceipt(await fetchBillReceipt(billId));
     } catch {
       push('พิมพ์ใบเสร็จไม่สำเร็จ', 'error');
     } finally {

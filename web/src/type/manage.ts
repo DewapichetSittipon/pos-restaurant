@@ -5,6 +5,7 @@ export interface ShopInfo {
   address: string | null;
   phone: string | null;
   taxId: string | null;
+  promptpayId: string | null;
 }
 
 // payload ตอนบันทึก (PATCH /shop) — ช่องว่างฝั่ง backend จะแปลงเป็น null
@@ -13,6 +14,7 @@ export interface UpdateShopInput {
   address: string;
   phone: string;
   taxId: string;
+  promptpayId: string;
 }
 
 // หมวดหมู่ + จำนวนเมนู (จาก GET /categories)

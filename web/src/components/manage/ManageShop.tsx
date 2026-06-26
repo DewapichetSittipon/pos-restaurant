@@ -13,9 +13,16 @@ interface Form {
   address: string;
   phone: string;
   taxId: string;
+  promptpayId: string;
 }
 
-const EMPTY: Form = { name: '', address: '', phone: '', taxId: '' };
+const EMPTY: Form = {
+  name: '',
+  address: '',
+  phone: '',
+  taxId: '',
+  promptpayId: '',
+};
 
 export function ManageShop() {
   const [form, setForm] = useState<Form>(EMPTY);
@@ -33,6 +40,7 @@ export function ManageShop() {
           address: s.address ?? '',
           phone: s.phone ?? '',
           taxId: s.taxId ?? '',
+          promptpayId: s.promptpayId ?? '',
         }),
       )
       .catch(() => setError('โหลดข้อมูลร้านไม่สำเร็จ'))
@@ -113,6 +121,16 @@ export function ManageShop() {
             value={form.taxId}
             onChange={(e) => set('taxId', e.target.value)}
             placeholder="0-0000-00000-00-0 (ถ้ามี)"
+            className="w-full rounded-lg border border-slate-300 px-3 py-2.5"
+          />
+        </Field>
+
+        <Field label="PromptPay (รับโอน — สร้าง QR บนใบเสร็จ)">
+          <input
+            value={form.promptpayId}
+            onChange={(e) => set('promptpayId', e.target.value)}
+            placeholder="เบอร์มือถือ หรือ เลขบัตรประชาชน"
+            inputMode="numeric"
             className="w-full rounded-lg border border-slate-300 px-3 py-2.5"
           />
         </Field>

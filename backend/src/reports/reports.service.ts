@@ -182,6 +182,7 @@ export class ReportsService {
         address: shop.address,
         phone: shop.phone,
         taxId: shop.taxId,
+        promptpayId: shop.promptpayId,
       },
       orderItems,
     };

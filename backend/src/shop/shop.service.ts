@@ -9,6 +9,7 @@ const SHOP_SELECT = {
   address: true,
   phone: true,
   taxId: true,
+  promptpayId: true,
 } as const;
 
 @Injectable()
@@ -39,6 +40,7 @@ export class ShopService {
         address: clean(dto.address),
         phone: clean(dto.phone),
         taxId: clean(dto.taxId),
+        promptpayId: clean(dto.promptpayId),
       },
       select: SHOP_SELECT,
     });

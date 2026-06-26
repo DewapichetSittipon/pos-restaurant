@@ -20,4 +20,10 @@ export class UpdateShopDto {
   @IsString()
   @MaxLength(40)
   taxId?: string;
+
+  // PromptPay ID — เบอร์มือถือ/เลขบัตรประชาชน/เลขนิติบุคคล
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  promptpayId?: string;
 }

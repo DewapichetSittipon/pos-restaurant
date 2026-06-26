@@ -1,4 +1,6 @@
+import QRCode from 'qrcode';
 import type { CheckoutResult } from '../type/staff';
+import { promptpayPayload } from './promptpay';
 
 // แปลงสตางค์ -> ตัวเลขบาท (ไม่มีสัญลักษณ์ ฿ เพราะ thermal บางตัวพิมพ์ไม่ได้)
 function baht(satang: number): string {
@@ -54,8 +56,8 @@ function aggregate(items: CheckoutResult['orderItems']): ReceiptLine[] {
   return [...map.values()];
 }
 
-// พิมพ์ใบเสร็จขนาด 80mm ผ่าน window.print() (ไม่ต้องลงไลบรารีเพิ่ม)
-export function printReceipt(bill: CheckoutResult): void {
+// พิมพ์ใบเสร็จขนาด 80mm ผ่าน window.print() (async เพราะสร้าง QR PromptPay)
+export async function printReceipt(bill: CheckoutResult): Promise<void> {
   const lines = aggregate(bill.orderItems);
   const subtotal = bill.subtotal ?? lines.reduce((s, l) => s + l.amount, 0);
   const discount = bill.discount ?? 0;
@@ -89,6 +91,16 @@ export function printReceipt(bill: CheckoutResult): void {
       ? `<div class="meta"><span>เงินทอน</span><span>${baht(change)}</span></div>`
       : '',
   ].join('');
+
+  // QR PromptPay — เฉพาะจ่ายแบบโอน + ร้านตั้ง PromptPay ไว้
+  let qrBlock = '';
+  if (bill.paymentMethod === 'transfer' && bill.shop.promptpayId && total > 0) {
+    const svg = await QRCode.toString(
+      promptpayPayload(bill.shop.promptpayId, total),
+      { type: 'svg', margin: 0 },
+    );
+    qrBlock = `<div class="qr">${svg}<div class="sub">สแกนจ่ายผ่าน PromptPay</div></div>`;
+  }
 
   // หัวร้าน — โชว์เฉพาะบรรทัดที่มีข้อมูล
   const headerLines = [
@@ -158,6 +170,8 @@ export function printReceipt(bill: CheckoutResult): void {
       margin-top: 4px;
     }
     .thanks { margin-top: 10px; font-size: 13px; }
+    .qr { text-align: center; margin-top: 10px; }
+    .qr svg { width: 42mm; height: 42mm; }
     @media print {
       @page { margin: 0; }
       .receipt { width: 100%; }
@@ -191,6 +205,8 @@ export function printReceipt(bill: CheckoutResult): void {
       <span>รวมทั้งสิ้น</span>
       <span>${baht(total)} บาท</span>
     </div>
+
+    ${qrBlock}
 
     <div class="center thanks">ขอบคุณที่ใช้บริการ</div>
   </div>

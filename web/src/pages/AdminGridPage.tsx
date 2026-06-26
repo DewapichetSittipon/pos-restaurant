@@ -5,6 +5,7 @@ import {
   fetchTables,
   openTable,
 } from '../services/staffApi';
+import { fetchShop } from '../services/manageApi';
 import { useStaffSocket } from '../hooks/useStaffSocket';
 import { useToastStore } from '../store/toastStore';
 import { SOCKET_EVENTS } from '../services/socket';
@@ -39,11 +40,19 @@ export function AdminGridPage() {
   const [qr, setQr] = useState<QrTarget | null>(null);
   const [checkout, setCheckout] = useState<CheckoutTarget | null>(null);
   const [checkingOut, setCheckingOut] = useState(false);
+  const [promptpayId, setPromptpayId] = useState<string | null>(null);
   const [billModal, setBillModal] = useState<{
     tableId: number;
     tableNumber: string;
   } | null>(null);
   const push = useToastStore((s) => s.push);
+
+  // โหลด PromptPay ของร้านครั้งเดียว (ใช้สร้าง QR ตอนเช็คบิลแบบโอน)
+  useEffect(() => {
+    fetchShop()
+      .then((s) => setPromptpayId(s.promptpayId))
+      .catch(() => undefined);
+  }, []);
 
   const reload = useCallback(() => {
     fetchTables()
@@ -90,7 +99,7 @@ export function AdminGridPage() {
     setCheckingOut(true);
     try {
       const bill = await checkoutTable(checkout.tableId, payload);
-      printReceipt(bill);
+      await printReceipt(bill);
       push(`เช็คบิลแล้ว · ${formatBaht(bill.totalPrice ?? 0)}`, 'success');
       setCheckout(null);
       reload();
@@ -153,6 +162,7 @@ export function AdminGridPage() {
         <CheckoutConfirmModal
           tableNumber={checkout.tableNumber}
           subtotal={checkout.total}
+          promptpayId={promptpayId}
           busy={checkingOut}
           onConfirm={confirmCheckout}
           onCancel={() => setCheckout(null)}

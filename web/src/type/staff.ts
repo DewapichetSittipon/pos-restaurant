@@ -20,6 +20,7 @@ export interface CheckoutResult extends Bill {
     address: string | null;
     phone: string | null;
     taxId: string | null;
+    promptpayId: string | null;
   };
   orderItems: OrderItem[];
 }

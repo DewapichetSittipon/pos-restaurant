@@ -257,6 +257,7 @@ export class TablesService {
           address: bill.shop.address,
           phone: bill.shop.phone,
           taxId: bill.shop.taxId,
+          promptpayId: bill.shop.promptpayId,
         },
         orderItems: billedItems,
       };

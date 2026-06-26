@@ -1,10 +1,13 @@
 import { useMemo, useState } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import { formatBaht } from '../utils/money';
+import { promptpayPayload } from '../utils/promptpay';
 import type { CheckoutPayload } from '../type/staff';
 
 interface CheckoutConfirmModalProps {
   tableNumber: string;
   subtotal: number; // สตางค์ ยอดก่อนหักส่วนลด
+  promptpayId: string | null; // PromptPay ของร้าน (null = ไม่มี → ไม่โชว์ QR)
   busy: boolean;
   onConfirm: (payload: CheckoutPayload) => void;
   onCancel: () => void;
@@ -19,6 +22,7 @@ function toSatang(baht: string): number {
 export function CheckoutConfirmModal({
   tableNumber,
   subtotal,
+  promptpayId,
   busy,
   onConfirm,
   onCancel,
@@ -122,6 +126,23 @@ export function CheckoutConfirmModal({
             )}
           </div>
         )}
+
+        {/* PromptPay QR (โอน) — ลูกค้าสแกนจ่ายยอดสุทธิ */}
+        {method === 'transfer' &&
+          (promptpayId && total > 0 ? (
+            <div className="mt-3 flex flex-col items-center rounded-xl bg-slate-50 py-3">
+              <QRCodeSVG value={promptpayPayload(promptpayId, total)} size={160} />
+              <p className="mt-2 text-xs text-slate-500">
+                สแกนจ่าย {formatBaht(total)} · PromptPay
+              </p>
+            </div>
+          ) : (
+            <p className="mt-3 text-center text-xs text-slate-400">
+              {promptpayId
+                ? ''
+                : 'ตั้งค่า PromptPay ในข้อมูลร้านเพื่อแสดง QR'}
+            </p>
+          ))}
 
         <div className="mt-5 flex gap-2">
           <button
