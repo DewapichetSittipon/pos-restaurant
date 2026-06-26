@@ -3,14 +3,16 @@ import { ManageTables } from '../components/manage/ManageTables';
 import { ManageCategories } from '../components/manage/ManageCategories';
 import { ManageMenus } from '../components/manage/ManageMenus';
 import { ManageShop } from '../components/manage/ManageShop';
+import { ManageAccount } from '../components/manage/ManageAccount';
 
-type Tab = 'tables' | 'categories' | 'menus' | 'shop';
+type Tab = 'tables' | 'categories' | 'menus' | 'shop' | 'account';
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'tables', label: 'โต๊ะ' },
   { key: 'categories', label: 'หมวดหมู่' },
   { key: 'menus', label: 'เมนู' },
   { key: 'shop', label: 'ข้อมูลร้าน' },
+  { key: 'account', label: 'บัญชี' },
 ];
 
 export function ManagePage() {
@@ -39,6 +41,7 @@ export function ManagePage() {
       {tab === 'categories' && <ManageCategories />}
       {tab === 'menus' && <ManageMenus />}
       {tab === 'shop' && <ManageShop />}
+      {tab === 'account' && <ManageAccount />}
     </div>
   );
 }

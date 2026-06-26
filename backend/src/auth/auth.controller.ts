@@ -1,7 +1,16 @@
-import { Body, Controller, Get, Post, Res, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Post,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import type { Response } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { ACCESS_TOKEN_COOKIE, JwtAuthGuard } from './jwt-auth.guard';
 import { CurrentStaff } from './current-staff.decorator';
 import type { JwtPayload } from './auth.types';
@@ -28,6 +37,21 @@ export class AuthController {
   @Post('logout')
   logout(@Res({ passthrough: true }) res: Response) {
     res.clearCookie(ACCESS_TOKEN_COOKIE, CROSS_SITE_COOKIE);
+    return { ok: true };
+  }
+
+  @Post('change-password')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  async changePassword(
+    @CurrentStaff() staff: JwtPayload,
+    @Body() dto: ChangePasswordDto,
+  ) {
+    await this.auth.changePassword(
+      staff.sub,
+      dto.currentPassword,
+      dto.newPassword,
+    );
     return { ok: true };
   }
 

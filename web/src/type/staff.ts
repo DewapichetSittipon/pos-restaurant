@@ -54,6 +54,29 @@ export interface EodReport {
   bills: EodBillRow[];
 }
 
+export interface BillDetailItem {
+  id: number;
+  itemName: string;
+  quantity: number;
+  unitPrice: number; // สตางค์
+  lineSatang: number; // unitPrice * quantity
+}
+
+export interface BillDetailCategory {
+  categoryId: number;
+  categoryName: string;
+  items: BillDetailItem[];
+  subtotalSatang: number;
+}
+
+export interface BillDetail {
+  billId: number;
+  tableNumber: string;
+  paidAt: string;
+  totalSatang: number;
+  categories: BillDetailCategory[];
+}
+
 export type ToastKind = 'info' | 'success' | 'error';
 
 export interface Toast {

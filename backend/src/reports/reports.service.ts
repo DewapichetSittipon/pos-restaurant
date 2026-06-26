@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 const TZ = 'Asia/Bangkok';
@@ -41,6 +45,71 @@ export class ReportsService {
         totalSatang: b.totalPrice ?? 0,
         paidAt: b.paidAt,
       })),
+    };
+  }
+
+  // รายละเอียดบิลย้อนหลัง — รายการเมนูที่สั่ง จัดกลุ่มตามหมวด (scope ตามร้าน)
+  // ไม่นับรายการที่ถูกยกเลิก (voided) เพื่อให้ยอดตรงกับยอดบิล
+  async billDetail(shopId: number, billId: number) {
+    const bill = await this.prisma.bill.findFirst({
+      where: { id: billId, shopId },
+      include: {
+        table: true,
+        orderItems: {
+          where: { status: { not: 'voided' } },
+          include: { menu: { include: { category: true } } },
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+    if (!bill) throw new NotFoundException('ไม่พบบิล');
+
+    // จัดกลุ่มตามหมวด (คงลำดับหมวดตามที่รายการแรกของหมวดถูกสั่ง)
+    const groups = new Map<
+      number,
+      {
+        categoryId: number;
+        categoryName: string;
+        items: {
+          id: number;
+          itemName: string;
+          quantity: number;
+          unitPrice: number;
+          lineSatang: number;
+        }[];
+        subtotalSatang: number;
+      }
+    >();
+
+    for (const oi of bill.orderItems) {
+      const cat = oi.menu.category;
+      let group = groups.get(cat.id);
+      if (!group) {
+        group = {
+          categoryId: cat.id,
+          categoryName: cat.name,
+          items: [],
+          subtotalSatang: 0,
+        };
+        groups.set(cat.id, group);
+      }
+      const lineSatang = oi.unitPrice * oi.quantity;
+      group.items.push({
+        id: oi.id,
+        itemName: oi.itemName,
+        quantity: oi.quantity,
+        unitPrice: oi.unitPrice,
+        lineSatang,
+      });
+      group.subtotalSatang += lineSatang;
+    }
+
+    return {
+      billId: bill.id,
+      tableNumber: bill.table.tableNumber,
+      paidAt: bill.paidAt,
+      totalSatang: bill.totalPrice ?? 0,
+      categories: [...groups.values()],
     };
   }
 }

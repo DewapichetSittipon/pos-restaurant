@@ -3,12 +3,14 @@ import { fetchEod } from '../services/staffApi';
 import { useToastStore } from '../store/toastStore';
 import { formatBaht } from '../utils/money';
 import { bangkokToday } from '../utils/datetime';
+import { BillDetailModal } from '../components/BillDetailModal';
 import type { EodReport } from '../type/staff';
 
 export function EodReportPage() {
   const [date, setDate] = useState(bangkokToday());
   const [report, setReport] = useState<EodReport | null>(null);
   const [loading, setLoading] = useState(false);
+  const [selectedBillId, setSelectedBillId] = useState<number | null>(null);
   const push = useToastStore((s) => s.push);
 
   useEffect(() => {
@@ -46,7 +48,9 @@ export function EodReportPage() {
 
       <div className="rounded-2xl bg-white p-4 shadow-sm">
         <p className="mb-3 text-sm font-semibold text-slate-500">
-          รายการบิล {loading && '· กำลังโหลด...'}
+          รายการบิล{' '}
+          <span className="font-normal text-slate-400">· แตะเพื่อดูรายการเมนู</span>
+          {loading && ' · กำลังโหลด...'}
         </p>
         {report && report.bills.length > 0 ? (
           <table className="w-full text-sm">
@@ -60,8 +64,12 @@ export function EodReportPage() {
             </thead>
             <tbody>
               {report.bills.map((b) => (
-                <tr key={b.id} className="border-t border-slate-100">
-                  <td className="py-2">{b.id}</td>
+                <tr
+                  key={b.id}
+                  onClick={() => setSelectedBillId(b.id)}
+                  className="cursor-pointer border-t border-slate-100 hover:bg-slate-50"
+                >
+                  <td className="py-2 font-medium text-emerald-600">#{b.id}</td>
                   <td className="py-2">{b.tableNumber}</td>
                   <td className="py-2">
                     {new Date(b.paidAt).toLocaleTimeString('th-TH', {
@@ -81,6 +89,13 @@ export function EodReportPage() {
           <p className="py-6 text-center text-slate-400">ยังไม่มีบิลในวันนี้</p>
         )}
       </div>
+
+      {selectedBillId !== null && (
+        <BillDetailModal
+          billId={selectedBillId}
+          onClose={() => setSelectedBillId(null)}
+        />
+      )}
     </div>
   );
 }

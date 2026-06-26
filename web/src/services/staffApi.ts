@@ -2,6 +2,7 @@ import { api } from './api';
 import type { OrderItem, OrderItemStatus, ServiceRequest } from '../type/domain';
 import type {
   ActiveOrderItem,
+  BillDetail,
   CheckoutResult,
   EodReport,
   OpenTableResult,
@@ -19,6 +20,13 @@ export async function login(username: string, password: string): Promise<Staff> 
 
 export async function logout(): Promise<void> {
   await api.post('/auth/logout');
+}
+
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<void> {
+  await api.post('/auth/change-password', { currentPassword, newPassword });
 }
 
 export async function fetchMe(): Promise<Staff> {
@@ -68,5 +76,10 @@ export async function fetchEod(date?: string): Promise<EodReport> {
   const { data } = await api.get<EodReport>('/reports/eod', {
     params: date ? { date } : undefined,
   });
+  return data;
+}
+
+export async function fetchBillDetail(billId: number): Promise<BillDetail> {
+  const { data } = await api.get<BillDetail>(`/reports/bills/${billId}`);
   return data;
 }

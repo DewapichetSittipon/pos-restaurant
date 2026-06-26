@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
@@ -35,5 +39,27 @@ export class AuthService {
         shopId: staff.shopId,
       },
     };
+  }
+
+  // เปลี่ยนรหัสผ่านของพนักงานที่ล็อกอินอยู่ — ต้องยืนยันรหัสเดิมก่อน
+  async changePassword(
+    staffId: number,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<void> {
+    const staff = await this.prisma.staff.findUnique({
+      where: { id: staffId },
+    });
+    if (!staff || !(await bcrypt.compare(currentPassword, staff.passwordHash))) {
+      throw new UnauthorizedException('รหัสผ่านเดิมไม่ถูกต้อง');
+    }
+    if (await bcrypt.compare(newPassword, staff.passwordHash)) {
+      throw new BadRequestException('รหัสผ่านใหม่ต้องไม่ซ้ำกับรหัสเดิม');
+    }
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await this.prisma.staff.update({
+      where: { id: staffId },
+      data: { passwordHash },
+    });
   }
 }
