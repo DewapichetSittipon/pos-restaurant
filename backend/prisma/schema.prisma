@@ -57,6 +57,9 @@ model Shop {
   id        Int      @id @default(autoincrement())
   name      String
   slug      String   @unique // ใช้ทำ URL/subdomain ภายหลัง
+  address   String? // หัวใบเสร็จ — ที่อยู่ร้าน
+  phone     String? // หัวใบเสร็จ — เบอร์โทร
+  taxId     String?  @map("tax_id") // เลขประจำตัวผู้เสียภาษี (ถ้ามี)
   createdAt DateTime @default(now()) @map("created_at")
 
   staff      Staff[]

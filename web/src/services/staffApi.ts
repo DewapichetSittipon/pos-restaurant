@@ -1,7 +1,8 @@
 import { api } from './api';
-import type { Bill, OrderItem, OrderItemStatus, ServiceRequest } from '../type/domain';
+import type { OrderItem, OrderItemStatus, ServiceRequest } from '../type/domain';
 import type {
   ActiveOrderItem,
+  CheckoutResult,
   EodReport,
   OpenTableResult,
   Staff,
@@ -35,8 +36,8 @@ export async function openTable(tableId: number): Promise<OpenTableResult> {
   return data;
 }
 
-export async function checkoutTable(tableId: number): Promise<Bill> {
-  const { data } = await api.post<Bill>(`/tables/${tableId}/checkout`);
+export async function checkoutTable(tableId: number): Promise<CheckoutResult> {
+  const { data } = await api.post<CheckoutResult>(`/tables/${tableId}/checkout`);
   return data;
 }
 

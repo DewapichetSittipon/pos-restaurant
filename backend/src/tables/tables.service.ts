@@ -111,15 +111,22 @@ export class TablesService {
     return this.prisma.$transaction(async (tx) => {
       const bill = await tx.bill.findFirst({
         where: { tableId, shopId, status: 'pending' },
-        include: { orderItems: true },
+        include: {
+          orderItems: { orderBy: { createdAt: 'asc' } },
+          table: true,
+          shop: true,
+        },
       });
       if (!bill) {
         throw new NotFoundException('ไม่พบบิลที่เปิดอยู่ของโต๊ะนี้');
       }
 
-      const total = bill.orderItems
-        .filter((i) => i.status !== 'voided')
-        .reduce((sum, i) => sum + i.unitPrice * i.quantity, 0);
+      // เฉพาะรายการที่ไม่ถูกยกเลิก — ใช้ทั้งคิดเงินและพิมพ์ใบเสร็จ
+      const billedItems = bill.orderItems.filter((i) => i.status !== 'voided');
+      const total = billedItems.reduce(
+        (sum, i) => sum + i.unitPrice * i.quantity,
+        0,
+      );
 
       const paid = await tx.bill.update({
         where: { id: bill.id },
@@ -139,7 +146,19 @@ export class TablesService {
         tableId,
         totalPrice: total,
       });
-      return paid;
+
+      // ส่งข้อมูลครบสำหรับพิมพ์ใบเสร็จ (รายการ + โต๊ะ + หัวร้าน)
+      return {
+        ...paid,
+        table: { id: bill.table.id, tableNumber: bill.table.tableNumber },
+        shop: {
+          name: bill.shop.name,
+          address: bill.shop.address,
+          phone: bill.shop.phone,
+          taxId: bill.shop.taxId,
+        },
+        orderItems: billedItems,
+      };
     });
   }
 

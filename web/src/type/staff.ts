@@ -11,6 +11,18 @@ export interface OpenTableResult extends Bill {
   customerUrl: string;
 }
 
+// ผลลัพธ์ตอนเช็คบิล — มีข้อมูลครบสำหรับพิมพ์ใบเสร็จ
+export interface CheckoutResult extends Bill {
+  table: Pick<TableInfo, 'id' | 'tableNumber'>;
+  shop: {
+    name: string;
+    address: string | null;
+    phone: string | null;
+    taxId: string | null;
+  };
+  orderItems: OrderItem[];
+}
+
 export interface Staff {
   id: number;
   username: string;

@@ -9,13 +9,21 @@ import { useStaffSocket } from '../hooks/useStaffSocket';
 import { useToastStore } from '../store/toastStore';
 import { SOCKET_EVENTS } from '../services/socket';
 import { formatBaht } from '../utils/money';
+import { printReceipt } from '../utils/printReceipt';
 import type { TableGridItem } from '../type/staff';
 import { TableCard } from '../components/TableCard';
 import { QrModal } from '../components/QrModal';
+import { CheckoutConfirmModal } from '../components/CheckoutConfirmModal';
 
 interface QrTarget {
   tableNumber: string;
   url: string;
+}
+
+interface CheckoutTarget {
+  tableId: number;
+  tableNumber: string;
+  total: number; // สตางค์ — ยอดล่าสุดจาก grid
 }
 
 // สร้างลิงก์ลูกค้าจากโต๊ะที่เปิดอยู่ (ไม่ต้องเรียก API ใหม่)
@@ -28,6 +36,8 @@ function buildCustomerUrl(table: TableGridItem): string | null {
 export function AdminGridPage() {
   const [tables, setTables] = useState<TableGridItem[]>([]);
   const [qr, setQr] = useState<QrTarget | null>(null);
+  const [checkout, setCheckout] = useState<CheckoutTarget | null>(null);
+  const [checkingOut, setCheckingOut] = useState(false);
   const push = useToastStore((s) => s.push);
 
   const reload = useCallback(() => {
@@ -59,13 +69,30 @@ export function AdminGridPage() {
     }
   }
 
-  async function handleCheckout(tableId: number): Promise<void> {
+  // กดเช็คบิล -> เปิด modal ยืนยันก่อน (ยอดเอาจากผัง grid ล่าสุด)
+  function handleCheckout(tableId: number): void {
+    const table = tables.find((t) => t.id === tableId);
+    setCheckout({
+      tableId,
+      tableNumber: table?.tableNumber ?? String(tableId),
+      total: table?.bills[0]?.totalPrice ?? 0,
+    });
+  }
+
+  // ยืนยันแล้ว -> ปิดบิลจริง + พิมพ์ใบเสร็จ
+  async function confirmCheckout(): Promise<void> {
+    if (!checkout) return;
+    setCheckingOut(true);
     try {
-      const bill = await checkoutTable(tableId);
+      const bill = await checkoutTable(checkout.tableId);
+      printReceipt(bill);
       push(`เช็คบิลแล้ว · ${formatBaht(bill.totalPrice ?? 0)}`, 'success');
+      setCheckout(null);
       reload();
     } catch {
       push('เช็คบิลไม่สำเร็จ', 'error');
+    } finally {
+      setCheckingOut(false);
     }
   }
 
@@ -109,6 +136,16 @@ export function AdminGridPage() {
           tableNumber={qr.tableNumber}
           url={qr.url}
           onClose={() => setQr(null)}
+        />
+      )}
+
+      {checkout && (
+        <CheckoutConfirmModal
+          tableNumber={checkout.tableNumber}
+          total={checkout.total}
+          busy={checkingOut}
+          onConfirm={confirmCheckout}
+          onCancel={() => setCheckout(null)}
         />
       )}
     </div>

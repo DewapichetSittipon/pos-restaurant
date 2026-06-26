@@ -13,9 +13,16 @@ async function seedShop(opts: {
   username: string;
   password: string;
   tableCount: number;
+  address?: string;
+  phone?: string;
 }): Promise<void> {
   const shop = await prisma.shop.create({
-    data: { name: opts.name, slug: opts.slug },
+    data: {
+      name: opts.name,
+      slug: opts.slug,
+      address: opts.address,
+      phone: opts.phone,
+    },
   });
 
   // --- โต๊ะ ---
@@ -96,6 +103,8 @@ async function main(): Promise<void> {
     username: 'shopa',
     password: 'shopa123',
     tableCount: 10,
+    address: '123 ถ.สุขุมวิท แขวงคลองเตย เขตคลองเตย กรุงเทพฯ 10110',
+    phone: '02-123-4567',
   });
   await seedShop({
     name: 'ร้านก๋วยเตี๋ยว B',
@@ -103,6 +112,8 @@ async function main(): Promise<void> {
     username: 'shopb',
     password: 'shopb123',
     tableCount: 6,
+    address: '456 ถ.พหลโยธิน แขวงจตุจักร เขตจตุจักร กรุงเทพฯ 10900',
+    phone: '02-987-6543',
   });
 
   const [admins, shops, tables, menus, staff] = await Promise.all([
