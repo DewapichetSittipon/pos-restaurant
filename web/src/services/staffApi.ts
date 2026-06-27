@@ -1,5 +1,11 @@
 import { api } from './api';
-import type { OrderItem, OrderItemStatus, ServiceRequest } from '../type/domain';
+import type {
+  Bill,
+  OrderItem,
+  OrderItemStatus,
+  OrderType,
+  ServiceRequest,
+} from '../type/domain';
 import type {
   ActiveOrderItem,
   BillDetail,
@@ -19,8 +25,17 @@ import type {
   StaffRole,
   TableBill,
   TableGridItem,
+  TakeawayBill,
   TopMenusReport,
 } from '../type/staff';
+
+export interface CreateTakeawayInput {
+  orderType: Exclude<OrderType, 'dine_in'>;
+  customerName?: string;
+  customerPhone?: string;
+  deliveryAddress?: string;
+  deliveryFee?: number; // สตางค์
+}
 
 export async function login(username: string, password: string): Promise<Staff> {
   const { data } = await api.post<{ staff: Staff }>('/auth/login', {
@@ -132,6 +147,42 @@ export async function checkoutTable(
 ): Promise<CheckoutResult> {
   const { data } = await api.post<CheckoutResult>(
     `/tables/${tableId}/checkout`,
+    payload,
+  );
+  return data;
+}
+
+// --- กลับบ้าน / เดลิเวอรี ---
+export async function fetchTakeawayBills(): Promise<TakeawayBill[]> {
+  const { data } = await api.get<TakeawayBill[]>('/tables/takeaway/list');
+  return data;
+}
+
+export async function createTakeawayBill(
+  input: CreateTakeawayInput,
+): Promise<Bill> {
+  const { data } = await api.post<Bill>('/tables/takeaway', input);
+  return data;
+}
+
+export async function addOrderToBill(
+  billId: number,
+  items: {
+    menuId: number;
+    quantity: number;
+    note?: string;
+    modifierOptionIds?: number[];
+  }[],
+): Promise<void> {
+  await api.post(`/orders/staff/bill/${billId}`, { items });
+}
+
+export async function checkoutTakeawayBill(
+  billId: number,
+  payload: CheckoutPayload,
+): Promise<CheckoutResult> {
+  const { data } = await api.post<CheckoutResult>(
+    `/tables/takeaway/${billId}/checkout`,
     payload,
   );
   return data;

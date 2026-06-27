@@ -67,6 +67,11 @@ export function NavBar() {
             จองโต๊ะ
           </Link>
         )}
+        {showTables && (
+          <Link to="/admin/takeaway" className={linkClass('/admin/takeaway')}>
+            กลับบ้าน
+          </Link>
+        )}
         {showOwnerOnly && (
           <Link to="/admin/report" className={linkClass('/admin/report')}>
             ยอดขาย

@@ -78,10 +78,16 @@ export interface TableInfo {
 }
 
 export type PaymentMethod = 'cash' | 'transfer';
+export type OrderType = 'dine_in' | 'takeaway' | 'delivery';
 
 export interface Bill {
   id: number;
-  tableId: number;
+  tableId: number | null;
+  orderType: OrderType;
+  customerName: string | null;
+  customerPhone: string | null;
+  deliveryAddress: string | null;
+  deliveryFee: number; // สตางค์ ค่าส่ง (0 = ไม่มี)
   totalPrice: number | null;
   discount: number; // สตางค์ (default 0)
   serviceCharge: number; // สตางค์ (default 0) — เซอร์วิสชาร์จ snapshot

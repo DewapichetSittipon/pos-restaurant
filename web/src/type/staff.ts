@@ -11,6 +11,11 @@ export interface OpenTableResult extends Bill {
   customerUrl: string;
 }
 
+// บิลกลับบ้าน/เดลิเวอรีที่เปิดอยู่ (พร้อมรายการ + ยอดสด)
+export interface TakeawayBill extends Bill {
+  orderItems: OrderItem[];
+}
+
 // สมาชิก/แต้มสะสม
 export interface Member {
   id: number;

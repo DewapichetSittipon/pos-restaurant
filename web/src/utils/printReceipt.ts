@@ -81,11 +81,30 @@ export async function printReceipt(bill: CheckoutResult): Promise<void> {
     bill.receiptNumber != null
       ? String(bill.receiptNumber).padStart(6, '0')
       : null;
+  // dine-in → "โต๊ะ X"; takeaway/delivery → server ตั้ง tableNumber เป็นป้ายประเภทไว้แล้ว
+  const isDineIn = !bill.orderType || bill.orderType === 'dine_in';
+  const placeLabel = isDineIn
+    ? `โต๊ะ ${escapeHtml(bill.table.tableNumber)}`
+    : escapeHtml(bill.table.tableNumber);
+  const customerLine =
+    !isDineIn && (bill.customerName || bill.customerPhone)
+      ? `<div class="meta"><span>${escapeHtml(bill.customerName ?? '')}${
+          bill.customerPhone ? ` · ${escapeHtml(bill.customerPhone)}` : ''
+        }</span></div>`
+      : '';
+  const addressLine =
+    bill.deliveryAddress
+      ? `<div class="meta"><span>📍 ${escapeHtml(bill.deliveryAddress)}</span></div>`
+      : '';
 
   const pct = (bp: number): string => (bp / 100).toLocaleString('th-TH');
   // โชว์บรรทัดยอดรวม(ก่อนปรับ) เมื่อมีส่วนลด/แลกแต้ม/เซอร์วิส/VAT อย่างใดอย่างหนึ่ง
   const hasAdjustments =
-    discount > 0 || pointsRedeemed > 0 || serviceCharge > 0 || vatRate > 0;
+    discount > 0 ||
+    pointsRedeemed > 0 ||
+    serviceCharge > 0 ||
+    vatRate > 0 ||
+    (bill.deliveryFee ?? 0) > 0;
 
   const methodLabel =
     bill.paymentMethod === 'cash'
@@ -114,6 +133,9 @@ export async function printReceipt(bill: CheckoutResult): Promise<void> {
       : '',
     vatRate > 0
       ? `<div class="meta"><span>VAT ${pct(vatRate)}%${vatInclusive ? ' (รวมแล้ว)' : ''}</span><span>${baht(vatAmount)}</span></div>`
+      : '',
+    (bill.deliveryFee ?? 0) > 0
+      ? `<div class="meta"><span>ค่าส่ง</span><span>${baht(bill.deliveryFee)}</span></div>`
       : '',
     methodLabel
       ? `<div class="meta"><span>ชำระโดย</span><span>${methodLabel}</span></div>`
@@ -240,9 +262,11 @@ export async function printReceipt(bill: CheckoutResult): Promise<void> {
         : ''
     }
     <div class="meta">
-      <span>โต๊ะ ${escapeHtml(bill.table.tableNumber)}</span>
+      <span>${placeLabel}</span>
       <span>${thaiDateTime(paidAt)}</span>
     </div>
+    ${customerLine}
+    ${addressLine}
     <div class="meta"><span>บิล #${bill.id}</span></div>
 
     <div class="hr"></div>

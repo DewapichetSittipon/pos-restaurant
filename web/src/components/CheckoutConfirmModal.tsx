@@ -13,6 +13,8 @@ interface CheckoutConfirmModalProps {
   loyaltyEarnRate: number; // แต้มต่อ 100 บาท (0 = ปิดระบบสมาชิก)
   promptpayId: string | null; // PromptPay ของร้าน (null = ไม่มี → ไม่โชว์ QR)
   busy: boolean;
+  deliveryFee?: number; // สตางค์ ค่าส่ง (เดลิเวอรี) — บวกท้ายยอดสุทธิ
+  label?: string; // ป้ายหัวข้อแทน "โต๊ะ X" (เช่น "กลับบ้าน")
   onConfirm: (payload: CheckoutPayload) => void;
   onCancel: () => void;
 }
@@ -30,6 +32,8 @@ export function CheckoutConfirmModal({
   loyaltyEarnRate,
   promptpayId,
   busy,
+  deliveryFee = 0,
+  label,
   onConfirm,
   onCancel,
 }: CheckoutConfirmModalProps) {
@@ -63,6 +67,8 @@ export function CheckoutConfirmModal({
     [subtotal, manualDiscount, redeemPoints, charges],
   );
   const { serviceCharge, vatAmount, total } = totals;
+  // ยอดที่ต้องจ่ายจริง = ยอดสุทธิอาหาร + ค่าส่ง (แต้มคิดจากยอดอาหารเท่านั้น)
+  const grandTotal = total + deliveryFee;
   const pointsToEarn =
     member && loyaltyEarnRate > 0
       ? Math.floor(total / 10000) * loyaltyEarnRate
@@ -95,8 +101,8 @@ export function CheckoutConfirmModal({
   );
   const received = toSatang(receivedInput);
   const change = useMemo(
-    () => (method === 'cash' && received > 0 ? received - total : null),
-    [method, received, total],
+    () => (method === 'cash' && received > 0 ? received - grandTotal : null),
+    [method, received, grandTotal],
   );
 
   function handleConfirm(): void {
@@ -118,7 +124,7 @@ export function CheckoutConfirmModal({
       />
       <div className="relative w-full max-w-xs rounded-2xl bg-white p-6 shadow-xl">
         <h2 className="text-center text-lg font-bold">
-          เช็คบิล โต๊ะ {tableNumber}
+          {label ? `เช็คบิล ${label}` : `เช็คบิล โต๊ะ ${tableNumber}`}
         </h2>
 
         <div className="mt-4 space-y-2 rounded-xl bg-slate-50 p-3 text-sm">
@@ -159,9 +165,15 @@ export function CheckoutConfirmModal({
               <span>{formatBaht(vatAmount)}</span>
             </div>
           )}
+          {deliveryFee > 0 && (
+            <div className="flex justify-between text-slate-500">
+              <span>ค่าส่ง</span>
+              <span>{formatBaht(deliveryFee)}</span>
+            </div>
+          )}
           <div className="flex justify-between border-t border-slate-200 pt-2 text-base font-bold">
             <span>สุทธิ</span>
-            <span>{formatBaht(total)}</span>
+            <span>{formatBaht(grandTotal)}</span>
           </div>
         </div>
 
@@ -281,11 +293,11 @@ export function CheckoutConfirmModal({
 
         {/* PromptPay QR (โอน) — ลูกค้าสแกนจ่ายยอดสุทธิ */}
         {method === 'transfer' &&
-          (promptpayId && total > 0 ? (
+          (promptpayId && grandTotal > 0 ? (
             <div className="mt-3 flex flex-col items-center rounded-xl bg-slate-50 py-3">
-              <QRCodeSVG value={promptpayPayload(promptpayId, total)} size={160} />
+              <QRCodeSVG value={promptpayPayload(promptpayId, grandTotal)} size={160} />
               <p className="mt-2 text-xs text-slate-500">
-                สแกนจ่าย {formatBaht(total)} · PromptPay
+                สแกนจ่าย {formatBaht(grandTotal)} · PromptPay
               </p>
             </div>
           ) : (

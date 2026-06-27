@@ -6,6 +6,7 @@ import { KitchenPage } from '../pages/KitchenPage';
 import { EodReportPage } from '../pages/EodReportPage';
 import { ShiftPage } from '../pages/ShiftPage';
 import { ReservationPage } from '../pages/ReservationPage';
+import { TakeawayPage } from '../pages/TakeawayPage';
 import { ManagePage } from '../pages/ManagePage';
 import { SignupPage } from '../pages/SignupPage';
 import { StaffLayout } from '../components/StaffLayout';
@@ -70,6 +71,14 @@ export function AppRouter() {
             element={
               <ProtectedRoute allowedRoles={['OWNER', 'WAITER']}>
                 <ReservationPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/takeaway"
+            element={
+              <ProtectedRoute allowedRoles={['OWNER', 'WAITER']}>
+                <TakeawayPage />
               </ProtectedRoute>
             }
           />
