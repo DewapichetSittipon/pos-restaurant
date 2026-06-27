@@ -3,7 +3,7 @@ import type { Bill, Table } from '@prisma/client';
 import type { RequestWithBill } from './auth.types';
 
 export const CurrentBill = createParamDecorator(
-  (_data: unknown, ctx: ExecutionContext): (Bill & { table: Table }) | undefined => {
+  (_data: unknown, ctx: ExecutionContext): (Bill & { table: Table | null }) | undefined => {
     const req = ctx.switchToHttp().getRequest<RequestWithBill>();
     return req.bill;
   },

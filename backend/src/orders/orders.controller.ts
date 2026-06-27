@@ -50,6 +50,18 @@ export class OrdersController {
     return this.orders.createByStaff(shopId, dto.tableId, dto.items);
   }
 
+  // พนักงานคีย์ออเดอร์เข้าบิลกลับบ้าน/เดลิเวอรี (resolve จาก billId)
+  @Post('staff/bill/:billId')
+  @UseGuards(JwtAuthGuard, ActiveShopGuard, RolesGuard)
+  @Roles('OWNER', 'WAITER')
+  createForBill(
+    @CurrentShop() shopId: number,
+    @Param('billId', ParseIntPipe) billId: number,
+    @Body() dto: CreateOrderDto,
+  ) {
+    return this.orders.createForBill(shopId, billId, dto.items);
+  }
+
   // คิวครัว (queued + cooking ของร้านนี้)
   @Get('active')
   @UseGuards(JwtAuthGuard, ActiveShopGuard, RolesGuard)

@@ -131,6 +131,18 @@ export class OrdersService {
     return this.create(shopId, bill.id, items);
   }
 
+  // พนักงานเพิ่มรายการเข้าบิลกลับบ้าน/เดลิเวอรี (resolve ด้วย billId แทนโต๊ะ)
+  async createForBill(shopId: number, billId: number, items: OrderLineDto[]) {
+    const bill = await this.prisma.bill.findFirst({
+      where: { id: billId, shopId, status: 'pending' },
+      select: { id: true },
+    });
+    if (!bill) {
+      throw new NotFoundException('ไม่พบบิลที่เปิดอยู่');
+    }
+    return this.create(shopId, bill.id, items);
+  }
+
   // คิวครัว: รายการของบิลที่ยังเปิดอยู่ของร้านนี้ (ยกเว้น voided) เรียงตามเวลา
   // รวม served ไว้เพื่อโชว์เวลาเสิร์ฟจนกว่าจะเช็คบิล
   activeQueue(shopId: number) {

@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { orderTypeLabel } from '../common/order-type';
 
 const TZ = 'Asia/Bangkok';
 
@@ -68,7 +69,7 @@ export class ReportsService {
       refundedSatang,
       bills: bills.map((b) => ({
         id: b.id,
-        tableNumber: b.table.tableNumber,
+        tableNumber: b.table?.tableNumber ?? orderTypeLabel(b.orderType),
         totalSatang: b.totalPrice ?? 0,
         paidAt: b.paidAt,
         status: b.status,
@@ -208,7 +209,7 @@ export class ReportsService {
     const rows = bills.map((b) => [
       String(b.id),
       b.paidAt ? fmt.format(b.paidAt) : '',
-      b.table.tableNumber,
+      b.table?.tableNumber ?? orderTypeLabel(b.orderType),
       statusLabel(b.status),
       methodLabel(b.paymentMethod),
       baht(b.discount),
@@ -382,7 +383,7 @@ export class ReportsService {
 
     return {
       billId: bill.id,
-      tableNumber: bill.table.tableNumber,
+      tableNumber: bill.table?.tableNumber ?? orderTypeLabel(bill.orderType),
       paidAt: bill.paidAt,
       totalSatang: bill.totalPrice ?? 0,
       status: bill.status,
@@ -459,7 +460,9 @@ export class ReportsService {
     return {
       ...rest,
       subtotal,
-      table: { id: table.id, tableNumber: table.tableNumber },
+      table: table
+        ? { id: table.id, tableNumber: table.tableNumber }
+        : { id: 0, tableNumber: orderTypeLabel(rest.orderType) },
       shop: {
         name: shop.name,
         address: shop.address,

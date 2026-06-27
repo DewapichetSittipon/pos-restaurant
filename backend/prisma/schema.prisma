@@ -67,6 +67,14 @@ enum ReservationStatus {
   cancelled
 }
 
+// ประเภทออเดอร์: dine_in = ทานที่ร้าน (ผูกโต๊ะ), takeaway = กลับบ้าน, delivery = ส่งเดลิเวอรี
+// takeaway/delivery ไม่ผูกโต๊ะ (table_id = null) และเก็บข้อมูลลูกค้า
+enum OrderType {
+  dine_in
+  takeaway
+  delivery
+}
+
 // บทบาทพนักงานภายในร้าน — กำหนดว่าเห็น/ทำอะไรได้บ้าง
 // OWNER = เจ้าของร้าน เห็นทุกอย่าง (จัดการร้าน/พนักงาน/ยอดขาย)
 // WAITER = พนักงานเสิร์ฟ เห็นแค่ผังโต๊ะ (เปิดโต๊ะ/รับออเดอร์/เช็คบิล)
@@ -222,7 +230,13 @@ model ModifierOption {
 model Bill {
   id          Int        @id @default(autoincrement())
   shopId         Int            @map("shop_id")
-  tableId        Int            @map("table_id")
+  tableId        Int?           @map("table_id") // null = ออเดอร์กลับบ้าน/เดลิเวอรี (ไม่ผูกโต๊ะ)
+  orderType      OrderType      @default(dine_in) @map("order_type")
+  // ข้อมูลลูกค้า (เฉพาะ takeaway/delivery)
+  customerName    String? @map("customer_name")
+  customerPhone   String? @map("customer_phone")
+  deliveryAddress String? @map("delivery_address")
+  deliveryFee     Int     @default(0) @map("delivery_fee") // สตางค์ ค่าส่ง (บวกท้ายยอดสุทธิ)
   totalPrice     Int?           @map("total_price") // สตางค์, snapshot ยอดสุทธิที่ต้องจ่าย (รวมเซอร์วิส/VAT, หลังหักส่วนลด) ตอน checkout
   discount       Int            @default(0) // สตางค์, ส่วนลดที่ใช้ตอน checkout
   // snapshot การคิดเซอร์วิสชาร์จ/VAT ตอน checkout (กันยอดเพี้ยนเมื่อร้านแก้อัตราภายหลัง)
@@ -250,7 +264,7 @@ model Bill {
   refundedByName String?        @map("refunded_by_name") // snapshot ชื่อผู้คืนเงิน
 
   shop            Shop             @relation(fields: [shopId], references: [id])
-  table           Table            @relation(fields: [tableId], references: [id])
+  table           Table?           @relation(fields: [tableId], references: [id])
   shift           Shift?           @relation(fields: [shiftId], references: [id])
   member          Member?          @relation(fields: [memberId], references: [id])
   orderItems      OrderItem[]

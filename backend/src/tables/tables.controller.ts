@@ -11,6 +11,7 @@ import {
 import { TablesService } from './tables.service';
 import { CreateTableDto } from './dto/create-table.dto';
 import { CheckoutDto } from './dto/checkout.dto';
+import { CreateTakeawayDto } from './dto/create-takeaway.dto';
 import { TransferBillDto } from './dto/transfer-bill.dto';
 import { MergeBillDto } from './dto/merge-bill.dto';
 import { SplitBillDto } from './dto/split-bill.dto';
@@ -22,6 +23,7 @@ import { CurrentShop } from '../auth/current-shop.decorator';
 import { CurrentStaff } from '../auth/current-staff.decorator';
 import type { JwtPayload } from '../auth/auth.types';
 import { AuditService } from '../audit/audit.service';
+import { orderTypeLabel } from '../common/order-type';
 
 // endpoints ฝั่งพนักงาน (ต้องล็อกอิน + ร้าน active) — scope ด้วยร้านของ staff
 // OWNER ทำได้ทุกอย่าง, WAITER ทำงานหน้าโต๊ะได้ แต่สร้าง/ลบโต๊ะเป็นของ OWNER
@@ -125,6 +127,40 @@ export class TablesController {
       { id: staff.sub, username: staff.username },
       'bill.split',
       `แยก ${dto.orderItemIds.length} รายการ จากโต๊ะ #${id} → โต๊ะ #${dto.toTableId}`,
+    );
+    return result;
+  }
+
+  // --- กลับบ้าน / เดลิเวอรี (ไม่ผูกโต๊ะ) ---
+  @Get('takeaway/list')
+  @Roles('OWNER', 'WAITER')
+  listTakeaway(@CurrentShop() shopId: number) {
+    return this.tables.listOpenTakeaway(shopId);
+  }
+
+  @Post('takeaway')
+  @Roles('OWNER', 'WAITER')
+  createTakeaway(
+    @CurrentShop() shopId: number,
+    @Body() dto: CreateTakeawayDto,
+  ) {
+    return this.tables.createTakeawayBill(shopId, dto);
+  }
+
+  @Post('takeaway/:id/checkout')
+  @Roles('OWNER', 'WAITER')
+  async checkoutTakeaway(
+    @CurrentShop() shopId: number,
+    @CurrentStaff() staff: JwtPayload,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CheckoutDto,
+  ) {
+    const result = await this.tables.checkoutBill(shopId, id, dto);
+    await this.audit.log(
+      shopId,
+      { id: staff.sub, username: staff.username },
+      'bill.checkout',
+      `บิล #${result.id} (${orderTypeLabel(result.orderType)}) · ${(result.totalPrice ?? 0) / 100} บาท`,
     );
     return result;
   }

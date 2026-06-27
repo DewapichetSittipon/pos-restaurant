@@ -9,6 +9,27 @@ import { PrismaService } from '../prisma/prisma.service';
 import { EventsGateway } from '../events/events.gateway';
 import { SocketEvent } from '../events/socket.constants';
 import { computeBillTotals } from '../common/bill-math';
+import { orderTypeLabel } from '../common/order-type';
+
+// include มาตรฐานสำหรับเช็คบิล (รายการ+ตัวเลือก, โต๊ะ, ร้าน)
+const CHECKOUT_INCLUDE = {
+  orderItems: {
+    orderBy: { createdAt: 'asc' },
+    include: { modifiers: true },
+  },
+  table: true,
+  shop: true,
+} satisfies Prisma.BillInclude;
+
+type CheckoutBill = Prisma.BillGetPayload<{ include: typeof CHECKOUT_INCLUDE }>;
+
+interface CheckoutOpts {
+  discount?: number;
+  paymentMethod: 'cash' | 'transfer';
+  receivedAmount?: number;
+  memberId?: number;
+  redeemPoints?: number;
+}
 
 @Injectable()
 export class TablesService {
@@ -300,38 +321,103 @@ export class TablesService {
         tableId,
         billId: bill.id,
       });
-      return { ...bill, customerUrl };
+      // เพิ่งสร้างพร้อม tableId → table ไม่เป็น null แน่นอน (assert ให้ตรง type)
+      return { ...bill, table: bill.table!, customerUrl };
     });
   }
 
-  // เช็คบิล: snapshot total_price (สุทธิหลังส่วนลด) + วิธีชำระ, set paid, โต๊ะกลับเป็น vacant
+  // เปิดบิลกลับบ้าน/เดลิเวอรี (ไม่ผูกโต๊ะ) — เก็บข้อมูลลูกค้า + ค่าส่ง
+  async createTakeawayBill(
+    shopId: number,
+    dto: {
+      orderType: 'takeaway' | 'delivery';
+      customerName?: string;
+      customerPhone?: string;
+      deliveryAddress?: string;
+      deliveryFee?: number;
+    },
+  ) {
+    const isDelivery = dto.orderType === 'delivery';
+    const bill = await this.prisma.bill.create({
+      data: {
+        shopId,
+        tableId: null,
+        orderType: dto.orderType,
+        customerName: dto.customerName?.trim() || null,
+        customerPhone: dto.customerPhone?.trim() || null,
+        deliveryAddress: isDelivery ? dto.deliveryAddress?.trim() || null : null,
+        deliveryFee: isDelivery ? Math.max(dto.deliveryFee ?? 0, 0) : 0,
+        qrToken: randomUUID(),
+        status: 'pending',
+      },
+    });
+    this.events.emitToShop(shopId, SocketEvent.TableOpened, {
+      tableId: undefined,
+      billId: bill.id,
+    });
+    return bill;
+  }
+
+  // รายการบิลกลับบ้าน/เดลิเวอรีที่ยังเปิดอยู่ + ยอดสด (คำนวณจากรายการที่ยังไม่ยกเลิก)
+  async listOpenTakeaway(shopId: number) {
+    const bills = await this.prisma.bill.findMany({
+      where: { shopId, status: 'pending', tableId: null },
+      orderBy: { createdAt: 'asc' },
+      include: {
+        orderItems: {
+          where: { status: { not: 'voided' } },
+          include: { modifiers: true },
+        },
+      },
+    });
+    return bills.map((b) => ({
+      ...b,
+      totalPrice: b.orderItems.reduce(
+        (s, i) => s + i.unitPrice * i.quantity,
+        0,
+      ),
+    }));
+  }
+
+  // เช็คบิลทานที่ร้าน — resolve บิลจากโต๊ะ แล้ว reuse logic เดียวกับ takeaway/delivery
   async checkout(
     shopId: number,
     tableId: number,
-    opts: {
-      discount?: number;
-      paymentMethod: 'cash' | 'transfer';
-      receivedAmount?: number;
-      memberId?: number;
-      redeemPoints?: number;
-    },
+    opts: CheckoutOpts,
   ) {
     return this.prisma.$transaction(async (tx) => {
       const bill = await tx.bill.findFirst({
         where: { tableId, shopId, status: 'pending' },
-        include: {
-          orderItems: {
-            orderBy: { createdAt: 'asc' },
-            include: { modifiers: true },
-          },
-          table: true,
-          shop: true,
-        },
+        include: CHECKOUT_INCLUDE,
       });
       if (!bill) {
         throw new NotFoundException('ไม่พบบิลที่เปิดอยู่ของโต๊ะนี้');
       }
+      return this.payBill(tx, bill, shopId, opts);
+    });
+  }
 
+  // เช็คบิลกลับบ้าน/เดลิเวอรี — resolve บิลจาก billId (ไม่ผูกโต๊ะ)
+  async checkoutBill(shopId: number, billId: number, opts: CheckoutOpts) {
+    return this.prisma.$transaction(async (tx) => {
+      const bill = await tx.bill.findFirst({
+        where: { id: billId, shopId, status: 'pending' },
+        include: CHECKOUT_INCLUDE,
+      });
+      if (!bill) {
+        throw new NotFoundException('ไม่พบบิลที่เปิดอยู่');
+      }
+      return this.payBill(tx, bill, shopId, opts);
+    });
+  }
+
+  // หัวใจการเช็คบิล (ใช้ร่วมทุกประเภทออเดอร์): คิดเงิน + snapshot + แต้ม + เลขใบเสร็จ + คืนข้อมูลใบเสร็จ
+  private async payBill(
+    tx: Prisma.TransactionClient,
+    bill: CheckoutBill,
+    shopId: number,
+    opts: CheckoutOpts,
+  ) {
       // เฉพาะรายการที่ไม่ถูกยกเลิก — ใช้ทั้งคิดเงินและพิมพ์ใบเสร็จ
       const billedItems = bill.orderItems.filter((i) => i.status !== 'voided');
       const subtotal = billedItems.reduce(
@@ -376,15 +462,18 @@ export class TablesService {
         manualDiscount + redeemSatang,
         charges,
       );
-      const { serviceCharge, vatAmount, total } = totals;
+      const { serviceCharge, vatAmount } = totals;
+      // ยอดสุทธิอาหาร (totals.total) + ค่าส่ง = ยอดที่ต้องจ่ายจริง
+      const netTotal = totals.total;
+      const total = netTotal + bill.deliveryFee;
       // เก็บส่วนลดปกติแยกจากแต้มที่แลก (ใบเสร็จโชว์คนละบรรทัด)
       const discount = manualDiscount;
 
-      // ได้แต้มจากยอดสุทธิ: earnRate แต้มต่อ 100 บาท (เฉพาะมีสมาชิก + เปิดระบบ)
+      // ได้แต้มจากยอดสุทธิอาหาร (ไม่รวมค่าส่ง): earnRate แต้มต่อ 100 บาท
       const earnRate = bill.shop.loyaltyEarnRate;
       const pointsEarned =
         member && earnRate > 0
-          ? Math.floor(total / 10000) * earnRate
+          ? Math.floor(netTotal / 10000) * earnRate
           : 0;
 
       // ผูกบิลกับกะที่เปิดอยู่ (ถ้ามี) เพื่อกระทบยอดเงินสดตอนปิดกะ
@@ -422,10 +511,13 @@ export class TablesService {
           pointsEarned,
         },
       });
-      await tx.table.update({
-        where: { id: tableId },
-        data: { status: 'vacant' },
-      });
+      // คืนโต๊ะเป็นว่าง — เฉพาะออเดอร์ที่ผูกโต๊ะ (dine-in)
+      if (bill.tableId != null) {
+        await tx.table.update({
+          where: { id: bill.tableId },
+          data: { status: 'vacant' },
+        });
+      }
 
       // อัปเดตแต้มสมาชิก (หักที่แลก + บวกที่ได้)
       let memberAfter: { name: string | null; points: number } | null = null;
@@ -444,15 +536,17 @@ export class TablesService {
       });
       this.events.emitToShop(shopId, SocketEvent.BillClosed, {
         billId: bill.id,
-        tableId,
+        tableId: bill.tableId ?? undefined,
         totalPrice: total,
       });
 
-      // ส่งข้อมูลครบสำหรับพิมพ์ใบเสร็จ (รายการ + โต๊ะ + หัวร้าน + ยอดก่อนหักส่วนลด)
+      // ส่งข้อมูลครบสำหรับพิมพ์ใบเสร็จ (รายการ + โต๊ะ/ประเภท + หัวร้าน + ยอดก่อนหักส่วนลด)
       return {
         ...paid,
         subtotal,
-        table: { id: bill.table.id, tableNumber: bill.table.tableNumber },
+        table: bill.table
+          ? { id: bill.table.id, tableNumber: bill.table.tableNumber }
+          : { id: 0, tableNumber: orderTypeLabel(bill.orderType) },
         shop: {
           name: bill.shop.name,
           address: bill.shop.address,
@@ -470,7 +564,6 @@ export class TablesService {
             }
           : null,
       };
-    });
   }
 
   // มุมมองลูกค้า: บิลปัจจุบัน + รายการที่สั่ง (group ด้วย batchId ฝั่ง frontend)
