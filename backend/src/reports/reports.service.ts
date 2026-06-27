@@ -445,6 +445,7 @@ export class ReportsService {
         orderItems: {
           where: { status: { not: 'voided' } },
           orderBy: { createdAt: 'asc' },
+          include: { modifiers: true },
         },
       },
     });

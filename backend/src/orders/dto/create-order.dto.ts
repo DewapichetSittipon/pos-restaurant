@@ -23,6 +23,12 @@ export class OrderLineDto {
   @IsString()
   @MaxLength(200)
   note?: string;
+
+  // id ของ ModifierOption ที่เลือก (เช่น ขนาด/ระดับ/ท็อปปิ้ง) — validate ฝั่ง service
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  modifierOptionIds?: number[];
 }
 
 export class CreateOrderDto {

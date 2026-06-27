@@ -177,13 +177,46 @@ model Menu {
   isArchived   Boolean  @default(false) @map("is_archived") // soft delete
   imageUrl     String?  @map("image_url") // path รูป เช่น /uploads/menus/xxx.jpg (null = ใช้ placeholder)
 
-  shop         Shop        @relation(fields: [shopId], references: [id])
-  category     Category    @relation(fields: [categoryId], references: [id])
-  orderItems   OrderItem[]
+  shop           Shop            @relation(fields: [shopId], references: [id])
+  category       Category        @relation(fields: [categoryId], references: [id])
+  orderItems     OrderItem[]
+  modifierGroups ModifierGroup[]
 
   @@index([shopId])
   @@index([categoryId])
   @@map("menus")
+}
+
+// กลุ่มตัวเลือกของเมนู เช่น "ระดับความเผ็ด", "ขนาด", "เพิ่มท็อปปิ้ง" — ผูกกับเมนูโดยตรง
+model ModifierGroup {
+  id        Int    @id @default(autoincrement())
+  menuId    Int    @map("menu_id")
+  name      String
+  // กฎการเลือก: minSelect 0 = ไม่บังคับ, >=1 = บังคับเลือก; maxSelect 1 = เลือกได้ตัวเดียว, >1 = หลายตัว
+  minSelect Int    @default(0) @map("min_select")
+  maxSelect Int    @default(1) @map("max_select")
+  sortOrder Int    @default(0) @map("sort_order")
+
+  menu    Menu             @relation(fields: [menuId], references: [id])
+  options ModifierOption[]
+
+  @@index([menuId])
+  @@map("modifier_groups")
+}
+
+// ตัวเลือกในกลุ่ม เช่น "เผ็ดมาก", "พิเศษ +20" — priceDelta เป็นสตางค์ (บวกเข้าราคาต่อหน่วย)
+model ModifierOption {
+  id          Int     @id @default(autoincrement())
+  groupId     Int     @map("group_id")
+  name        String
+  priceDelta  Int     @default(0) @map("price_delta") // สตางค์ (0 = ไม่บวกเพิ่ม)
+  isAvailable Boolean @default(true) @map("is_available")
+  sortOrder   Int     @default(0) @map("sort_order")
+
+  group ModifierGroup @relation(fields: [groupId], references: [id])
+
+  @@index([groupId])
+  @@map("modifier_options")
 }
 
 model Bill {
@@ -311,12 +344,28 @@ model OrderItem {
 
   bill       Bill @relation(fields: [billId], references: [id])
   menu       Menu @relation(fields: [menuId], references: [id])
+  modifiers  OrderItemModifier[]
 
   // ผูกร้านผ่าน bill (ไม่เก็บ shop_id ซ้ำ)
   @@index([billId])
   @@index([batchId])
   @@index([status])
   @@map("order_items")
+}
+
+// ตัวเลือกที่ลูกค้าเลือกตอนสั่ง — snapshot ชื่อ+ราคา (priceDelta ถูกบวกเข้า OrderItem.unitPrice แล้ว)
+// เก็บแยกเพื่อโชว์บนใบเสร็จ/คิวครัว; optionId อ้างต้นทาง (nullable เผื่อ option ถูกลบภายหลัง)
+model OrderItemModifier {
+  id          Int    @id @default(autoincrement())
+  orderItemId Int    @map("order_item_id")
+  optionId    Int?   @map("option_id")
+  name        String // snapshot ชื่อ เช่น "เผ็ดมาก" หรือ "พิเศษ"
+  priceDelta  Int    @default(0) @map("price_delta") // สตางค์ snapshot
+
+  orderItem OrderItem @relation(fields: [orderItemId], references: [id])
+
+  @@index([orderItemId])
+  @@map("order_item_modifiers")
 }
 
 model Staff {

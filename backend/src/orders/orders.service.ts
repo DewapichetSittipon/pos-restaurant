@@ -28,6 +28,7 @@ export class OrdersService {
       for (const line of items) {
         const menu = await tx.menu.findFirst({
           where: { id: line.menuId, shopId },
+          include: { modifierGroups: { include: { options: true } } },
         });
         if (!menu || menu.isArchived) {
           throw new NotFoundException(`ไม่พบเมนู (id ${line.menuId})`);
@@ -35,6 +36,41 @@ export class OrdersService {
         if (!menu.isAvailable) {
           throw new BadRequestException(`"${menu.name}" งดขายอยู่`);
         }
+
+        // ตรวจตัวเลือก (modifiers): ต้องเป็นของเมนูนี้ + พร้อมขาย + ตรงกฎ min/max ต่อกลุ่ม
+        // priceDelta รวมแล้วบวกเข้า unitPrice เพื่อให้สูตรคิดเงิน/รายงานที่ใช้ unitPrice*qty ถูกต้องโดยไม่ต้องแก้
+        const selectedIds = [...new Set(line.modifierOptionIds ?? [])];
+        const optionsById = new Map(
+          menu.modifierGroups.flatMap((g) =>
+            g.options.map((o) => [o.id, o] as const),
+          ),
+        );
+        const chosen = selectedIds.map((id) => {
+          const opt = optionsById.get(id);
+          if (!opt) {
+            throw new BadRequestException(
+              `ตัวเลือกไม่ถูกต้องสำหรับ "${menu.name}"`,
+            );
+          }
+          if (!opt.isAvailable) {
+            throw new BadRequestException(`"${opt.name}" หมด/งดขายอยู่`);
+          }
+          return opt;
+        });
+        for (const g of menu.modifierGroups) {
+          const count = chosen.filter((o) => o.groupId === g.id).length;
+          if (count < g.minSelect) {
+            throw new BadRequestException(
+              `"${menu.name}" ต้องเลือก "${g.name}" อย่างน้อย ${g.minSelect} อย่าง`,
+            );
+          }
+          if (count > g.maxSelect) {
+            throw new BadRequestException(
+              `"${menu.name}" เลือก "${g.name}" ได้ไม่เกิน ${g.maxSelect} อย่าง`,
+            );
+          }
+        }
+        const modifierDelta = chosen.reduce((s, o) => s + o.priceDelta, 0);
 
         // หักสต็อกเฉพาะเมนูที่นับสต็อก (stockCount != null) แบบ conditional update
         if (menu.stockCount !== null) {
@@ -53,11 +89,20 @@ export class OrdersService {
             menuId: menu.id,
             batchId,
             quantity: line.quantity,
-            unitPrice: menu.price, // สตางค์ snapshot
+            unitPrice: menu.price + modifierDelta, // สตางค์ snapshot (รวมตัวเลือก)
             itemName: menu.name, // snapshot ชื่อ
             note: line.note?.trim() || null, // หมายเหตุต่อรายการ
             imageUrl: menu.imageUrl, // snapshot รูป
+            // snapshot ตัวเลือกที่เลือก เพื่อโชว์บนใบเสร็จ/คิวครัว
+            modifiers: {
+              create: chosen.map((o) => ({
+                optionId: o.id,
+                name: o.name,
+                priceDelta: o.priceDelta,
+              })),
+            },
           },
+          include: { modifiers: true },
         });
         result.push(item);
       }
@@ -95,7 +140,7 @@ export class OrdersService {
         bill: { status: 'pending', shopId },
       },
       orderBy: { createdAt: 'asc' },
-      include: { bill: { include: { table: true } } },
+      include: { bill: { include: { table: true } }, modifiers: true },
     });
   }
 

@@ -320,7 +320,10 @@ export class TablesService {
       const bill = await tx.bill.findFirst({
         where: { tableId, shopId, status: 'pending' },
         include: {
-          orderItems: { orderBy: { createdAt: 'asc' } },
+          orderItems: {
+            orderBy: { createdAt: 'asc' },
+            include: { modifiers: true },
+          },
           table: true,
           shop: true,
         },
@@ -476,7 +479,10 @@ export class TablesService {
       where: { id: billId },
       include: {
         table: true,
-        orderItems: { orderBy: { createdAt: 'asc' } },
+        orderItems: {
+          orderBy: { createdAt: 'asc' },
+          include: { modifiers: true },
+        },
         serviceRequests: { where: { status: 'pending' } },
       },
     });
