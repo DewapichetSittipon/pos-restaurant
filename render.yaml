@@ -28,6 +28,7 @@ services:
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
-      # อัปเดตเป็น URL ของ Cloudflare Pages หลัง frontend ขึ้น
+      # URL frontend จริง (ห้ามใช้ "*" เพราะ credentials:true/cookie ใช้คู่ไม่ได้)
+      # ใส่หลาย origin คั่นด้วย comma ได้ เช่น "https://a.dev,https://b.dev"
       - key: CORS_ORIGIN
-        value: "*"
+        value: "https://pos-restaurant.dew-ghost333.workers.dev"

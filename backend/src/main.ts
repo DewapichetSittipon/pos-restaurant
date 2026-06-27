@@ -21,8 +21,23 @@ async function bootstrap(): Promise<void> {
   );
   // จับ error ทั้งแอป: structured log + ส่ง Sentry (5xx) — ตอบ client เป็น JSON เดียวกัน
   app.useGlobalFilters(new AllExceptionsFilter());
+  // CORS: รองรับหลาย origin คั่นด้วย comma ใน CORS_ORIGIN
+  // ใช้ฟังก์ชันสะท้อน origin ที่อยู่ใน allowlist กลับไป — จำเป็นเพราะ credentials:true (cookie)
+  // ใช้คู่กับ Access-Control-Allow-Origin: "*" ไม่ได้ ต้องตอบ origin จริง
+  const allowedOrigins = (process.env.CORS_ORIGIN ?? 'http://localhost:5173')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+  const allowAny = allowedOrigins.includes('*');
   app.enableCors({
-    origin: process.env.CORS_ORIGIN ?? 'http://localhost:5173',
+    origin: (origin, cb) => {
+      // ไม่มี origin (curl/health check/same-origin) หรืออยู่ใน allowlist → อนุญาต
+      if (!origin || allowAny || allowedOrigins.includes(origin)) {
+        cb(null, true);
+      } else {
+        cb(null, false);
+      }
+    },
     credentials: true,
   });
 
