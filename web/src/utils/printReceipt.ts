@@ -71,6 +71,14 @@ export async function printReceipt(bill: CheckoutResult): Promise<void> {
   const total = bill.totalPrice ?? subtotal - discount;
   const paidAt = bill.paidAt ?? new Date().toISOString();
 
+  // ร้านที่มีเลขผู้เสียภาษี → ออกเป็น "ใบกำกับภาษีอย่างย่อ" (เหมาะกับร้านอาหาร/ขายปลีก) มิฉะนั้นเป็นใบเสร็จรับเงิน
+  const docLabel = bill.shop.taxId ? 'ใบกำกับภาษีอย่างย่อ' : 'ใบเสร็จรับเงิน';
+  // เลขที่เอกสารรันต่อเนื่องต่อร้าน — แสดงแบบเติมศูนย์ 6 หลัก (เช่น 000042)
+  const receiptNo =
+    bill.receiptNumber != null
+      ? String(bill.receiptNumber).padStart(6, '0')
+      : null;
+
   const pct = (bp: number): string => (bp / 100).toLocaleString('th-TH');
   // โชว์บรรทัดยอดรวม(ก่อนปรับ) เมื่อมีส่วนลด/แลกแต้ม/เซอร์วิส/VAT อย่างใดอย่างหนึ่ง
   const hasAdjustments =
@@ -214,11 +222,16 @@ export async function printReceipt(bill: CheckoutResult): Promise<void> {
     <div class="center">
       <div class="shop">${escapeHtml(bill.shop.name)}</div>
       ${headerLines}
-      <div class="sub" style="margin-top:6px">ใบเสร็จรับเงิน</div>
+      <div class="sub" style="margin-top:6px">${docLabel}</div>
     </div>
 
     <div class="hr"></div>
 
+    ${
+      receiptNo
+        ? `<div class="meta"><span>เลขที่</span><span>${receiptNo}</span></div>`
+        : ''
+    }
     <div class="meta">
       <span>โต๊ะ ${escapeHtml(bill.table.tableNumber)}</span>
       <span>${thaiDateTime(paidAt)}</span>

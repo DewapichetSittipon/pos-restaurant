@@ -105,6 +105,8 @@ model Shop {
   serviceChargeRate Int     @default(0) @map("service_charge_rate") // เซอร์วิสชาร์จ (basis points)
   // สมาชิก/แต้มสะสม: แต้มที่ได้ต่อ 100 บาท (0 = ปิดระบบสมาชิก); แลกแต้ม 1 แต้ม = 1 บาทเสมอ
   loyaltyEarnRate   Int     @default(0) @map("loyalty_earn_rate")
+  // ตัวนับเลขที่ใบเสร็จ/ใบกำกับภาษีแบบรันต่อเนื่องต่อร้าน — increment atomic ตอน checkout
+  receiptCounter    Int     @default(0) @map("receipt_counter")
   createdAt   DateTime   @default(now()) @map("created_at")
 
   staff      Staff[]
@@ -204,6 +206,8 @@ model Bill {
   pointsEarned    Int  @default(0) @map("points_earned") // แต้มที่ได้รับจากบิลนี้
   pointsRedeemed  Int  @default(0) @map("points_redeemed") // แต้มที่ใช้แลกส่วนลด (1 แต้ม = 1 บาท)
   status         BillStatus     @default(pending)
+  // เลขที่ใบเสร็จ/ใบกำกับภาษี — รันต่อเนื่องต่อร้าน (set ตอน checkout), null = ยังไม่ชำระ
+  receiptNumber  Int?           @map("receipt_number")
   qrToken        String         @unique @map("qr_token") // UUID (unique ทั้งระบบ)
   createdAt      DateTime       @default(now()) @map("created_at")
   paidAt         DateTime?      @map("paid_at")
@@ -226,6 +230,8 @@ model Bill {
   @@index([paidAt])
   @@index([shiftId])
   @@index([memberId])
+  // เลขที่ใบเสร็จห้ามซ้ำภายในร้านเดียวกัน (null ซ้ำได้ — บิลที่ยังไม่ชำระ)
+  @@unique([shopId, receiptNumber])
   @@map("bills")
 }
 

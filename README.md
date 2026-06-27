@@ -200,7 +200,32 @@ CORS_ORIGIN=         # URL ของ Cloudflare Pages
 **Frontend (Cloudflare Pages):**
 ```env
 VITE_API_URL=        # URL ของ Render backend
+VITE_SENTRY_DSN=     # (ออปชัน) error tracking ฝั่ง web — ไม่ตั้ง = ปิด
 ```
+
+**Backend — ออปชันเสริม (ไม่ตั้ง = ปิดฟีเจอร์นั้นเงียบ ๆ):**
+```env
+SENTRY_DSN=                  # error tracking ฝั่ง backend
+LINE_CHANNEL_ACCESS_TOKEN=   # แจ้งเตือน LINE (push)
+LINE_TARGET_ID=
+SMTP_URL=                    # แจ้งเตือน Email
+ALERT_EMAIL_TO=
+```
+
+## Ops & Production-readiness
+
+- **Tests** — `npm test -w backend` / `-w web` (Vitest) ครอบสูตรคิดบิลทุกเคส (VAT/เซอร์วิส/ส่วนลด/ปัดเศษ)
+- **DB backup** — สำรองอัตโนมัติรายวันผ่าน GitHub Actions → ดู [docs/backup-and-restore.md](./docs/backup-and-restore.md)
+- **Error tracking** — Sentry (env-gated) + global exception filter พร้อม structured logging
+- **แจ้งเตือน** — LINE/Email เมื่อมีร้านสมัครใหม่ / การจองใหม่ (env-gated)
+- **PWA** — ติดตั้งลงเครื่องได้ + แถบเตือนออฟไลน์
+- **ใบกำกับภาษี** — เลขที่ใบเสร็จรันต่อเนื่องต่อร้าน (ใส่เลขผู้เสียภาษี → ออกเป็น "ใบกำกับภาษีอย่างย่อ")
+
+### เอกสารเพิ่มเติม
+- [เปิดร้านใหม่ (Onboarding)](./docs/onboarding-new-shop.md)
+- [สำรอง/กู้คืนฐานข้อมูล](./docs/backup-and-restore.md)
+- [การพิมพ์ใบเสร็จ (Thermal)](./docs/thermal-printing.md)
+- [นโยบายเก็บ/ลบข้อมูล](./docs/data-retention.md)
 
 ## Notes
 

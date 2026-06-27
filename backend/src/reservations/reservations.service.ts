@@ -4,13 +4,17 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationService } from '../notifications/notification.service';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 
 const TZ = 'Asia/Bangkok';
 
 @Injectable()
 export class ReservationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notify: NotificationService,
+  ) {}
 
   private bangkokToday(): string {
     return new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(new Date());
@@ -44,7 +48,7 @@ export class ReservationsService {
     if (Number.isNaN(reservedAt.getTime())) {
       throw new BadRequestException('วันเวลาที่นัดไม่ถูกต้อง');
     }
-    return this.prisma.reservation.create({
+    const created = await this.prisma.reservation.create({
       data: {
         shopId,
         customerName: dto.customerName.trim(),
@@ -56,6 +60,20 @@ export class ReservationsService {
       },
       include: { table: { select: { id: true, tableNumber: true } } },
     });
+
+    // แจ้งเตือนการจองใหม่ (best-effort — ไม่กระทบการบันทึกจอง)
+    const when = new Intl.DateTimeFormat('th-TH', {
+      timeZone: TZ,
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(reservedAt);
+    void this.notify.notify(
+      '📅 มีการจองโต๊ะใหม่',
+      `${created.customerName} • ${created.partySize} ท่าน • ${when}` +
+        (created.table ? ` • โต๊ะ ${created.table.tableNumber}` : '') +
+        (created.phone ? ` • โทร ${created.phone}` : ''),
+    );
+    return created;
   }
 
   async updateStatus(

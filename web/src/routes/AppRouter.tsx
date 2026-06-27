@@ -14,10 +14,12 @@ import { PlatformLoginPage } from '../pages/PlatformLoginPage';
 import { PlatformDashboardPage } from '../pages/PlatformDashboardPage';
 import { PlatformProtectedRoute } from '../components/PlatformProtectedRoute';
 import { CenterMessage } from '../components/CenterMessage';
+import { OfflineBanner } from '../components/OfflineBanner';
 
 export function AppRouter() {
   return (
     <BrowserRouter>
+      <OfflineBanner />
       <Routes>
         {/* ลูกค้า */}
         <Route path="/table/:tableId" element={<TablePage />} />

@@ -2,11 +2,15 @@ import { ConflictException, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationService } from '../notifications/notification.service';
 import type { SignupDto } from './dto/signup.dto';
 
 @Injectable()
 export class SignupService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notify: NotificationService,
+  ) {}
 
   // ร้านสมัครเอง -> สร้าง Shop (pending) + Staff ในทรานแซกชันเดียว
   // ร้านตั้ง username/password เอง แล้ว login เข้าไปเห็นหน้า "รออนุมัติ" ทันที
@@ -14,7 +18,7 @@ export class SignupService {
     const slug = await this.uniqueSlug(dto.shopName);
     const passwordHash = await bcrypt.hash(dto.staffPassword, 10);
     try {
-      return await this.prisma.$transaction(async (tx) => {
+      await this.prisma.$transaction(async (tx) => {
         const shop = await tx.shop.create({
           data: {
             name: dto.shopName,
@@ -32,8 +36,13 @@ export class SignupService {
             role: 'OWNER', // ผู้สมัคร = เจ้าของร้าน
           },
         });
-        return { ok: true };
       });
+      // แจ้งผู้ดูแลแพลตฟอร์มว่ามีร้านใหม่รออนุมัติ (best-effort ไม่ block การสมัคร)
+      void this.notify.notify(
+        '🏪 ร้านใหม่รออนุมัติ',
+        `ร้าน "${dto.shopName}" (ผู้ติดต่อ: ${dto.contactName ?? '-'}, โทร: ${dto.phone ?? '-'}) สมัครเข้ามาแล้ว รอการอนุมัติในหน้า /platform`,
+      );
+      return { ok: true };
     } catch (err) {
       // username ซ้ำทั้งระบบ -> ให้ร้านเลือกใหม่
       if (
