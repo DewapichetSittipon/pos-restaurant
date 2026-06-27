@@ -56,3 +56,17 @@ export interface UpdateMenuInput {
   stockCount?: number | null;
   isAvailable?: boolean;
 }
+
+// payload ตั้งค่าตัวเลือกของเมนู (แทนที่ทั้งชุด) — ส่งให้ PUT /menus/:id/modifiers
+export interface ModifierOptionInput {
+  name: string;
+  priceDelta: number; // สตางค์
+  isAvailable?: boolean;
+}
+
+export interface ModifierGroupInput {
+  name: string;
+  minSelect: number;
+  maxSelect: number;
+  options: ModifierOptionInput[];
+}

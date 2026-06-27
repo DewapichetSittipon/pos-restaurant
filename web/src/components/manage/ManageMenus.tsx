@@ -10,6 +10,7 @@ import {
 } from '../../services/manageApi';
 import { formatBaht } from '../../utils/money';
 import { MenuThumb } from '../MenuThumb';
+import { ManageModifiers } from './ManageModifiers';
 import type { Category, MenuItem } from '../../type/domain';
 
 function errMsg(err: unknown, fallback: string): string {
@@ -35,6 +36,7 @@ export function ManageMenus() {
   const [edit, setEdit] = useState({ name: '', priceBaht: '', stock: '' });
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [modMenu, setModMenu] = useState<MenuItem | null>(null);
 
   const reload = useCallback(() => {
     fetchCatalog()
@@ -304,6 +306,16 @@ export function ManageMenus() {
                         </button>
                         <button
                           type="button"
+                          onClick={() => setModMenu(m)}
+                          className="text-sm text-orange-500 hover:text-orange-700"
+                        >
+                          ตัวเลือก
+                          {m.modifierGroups && m.modifierGroups.length > 0
+                            ? ` (${m.modifierGroups.length})`
+                            : ''}
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => remove(m.id)}
                           className="text-sm text-rose-500 hover:text-rose-700"
                         >
@@ -318,6 +330,17 @@ export function ManageMenus() {
           </div>
         ))}
       </div>
+
+      {modMenu && (
+        <ManageModifiers
+          menu={modMenu}
+          onClose={() => setModMenu(null)}
+          onSaved={() => {
+            setModMenu(null);
+            reload();
+          }}
+        />
+      )}
     </section>
   );
 }

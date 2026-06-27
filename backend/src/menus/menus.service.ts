@@ -5,7 +5,11 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../uploads/storage.service';
-import type { CreateMenuDto, UpdateMenuDto } from './dto/menu.dto';
+import type {
+  CreateMenuDto,
+  UpdateMenuDto,
+  ModifierGroupInput,
+} from './dto/menu.dto';
 import {
   ALLOWED_IMAGE_MIME,
   MAX_IMAGE_BYTES,
@@ -30,8 +34,58 @@ export class MenusService {
         menus: {
           where: { isArchived: false },
           orderBy: { id: 'asc' },
+          include: {
+            modifierGroups: {
+              orderBy: { sortOrder: 'asc' },
+              include: { options: { orderBy: { sortOrder: 'asc' } } },
+            },
+          },
         },
       },
+    });
+  }
+
+  // แทนที่ชุดตัวเลือกทั้งหมดของเมนู (ลบของเดิม สร้างใหม่ทั้งก้อน) — ง่ายต่อฟอร์มจัดการ
+  // ปลอดภัยกับประวัติ: OrderItemModifier เป็น snapshot ไม่ผูก FK กับ ModifierOption
+  async setMenuModifiers(shopId: number, menuId: number, groups: ModifierGroupInput[]) {
+    const menu = await this.prisma.menu.findFirst({ where: { id: menuId, shopId } });
+    if (!menu) {
+      throw new NotFoundException('ไม่พบเมนู');
+    }
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.modifierGroup.findMany({
+        where: { menuId },
+        select: { id: true },
+      });
+      const groupIds = existing.map((g) => g.id);
+      if (groupIds.length > 0) {
+        await tx.modifierOption.deleteMany({ where: { groupId: { in: groupIds } } });
+        await tx.modifierGroup.deleteMany({ where: { id: { in: groupIds } } });
+      }
+      for (const [gi, g] of groups.entries()) {
+        await tx.modifierGroup.create({
+          data: {
+            menuId,
+            name: g.name.trim(),
+            minSelect: g.minSelect,
+            maxSelect: g.maxSelect,
+            sortOrder: gi,
+            options: {
+              create: g.options.map((o, oi) => ({
+                name: o.name.trim(),
+                priceDelta: o.priceDelta,
+                isAvailable: o.isAvailable ?? true,
+                sortOrder: oi,
+              })),
+            },
+          },
+        });
+      }
+      return tx.modifierGroup.findMany({
+        where: { menuId },
+        orderBy: { sortOrder: 'asc' },
+        include: { options: { orderBy: { sortOrder: 'asc' } } },
+      });
     });
   }
 

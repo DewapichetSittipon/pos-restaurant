@@ -6,6 +6,21 @@ export type TableStatus = 'vacant' | 'occupied';
 export type ServiceRequestType = 'call_staff' | 'call_bill';
 export type ServiceRequestStatus = 'pending' | 'acknowledged';
 
+export interface ModifierOption {
+  id: number;
+  name: string;
+  priceDelta: number; // สตางค์ (0 = ไม่บวกเพิ่ม)
+  isAvailable: boolean;
+}
+
+export interface ModifierGroup {
+  id: number;
+  name: string;
+  minSelect: number; // 0 = ไม่บังคับ
+  maxSelect: number; // เลือกได้สูงสุดกี่ตัว
+  options: ModifierOption[];
+}
+
 export interface MenuItem {
   id: number;
   categoryId: number;
@@ -15,6 +30,14 @@ export interface MenuItem {
   isAvailable: boolean;
   isArchived: boolean;
   imageUrl: string | null; // path รูป (null = ใช้ placeholder)
+  modifierGroups?: ModifierGroup[]; // ตัวเลือก (ขนาด/ระดับ/ท็อปปิ้ง)
+}
+
+// ตัวเลือกที่ถูกเลือก (snapshot บน OrderItem)
+export interface OrderItemModifier {
+  id: number;
+  name: string;
+  priceDelta: number; // สตางค์
 }
 
 export interface Category {
@@ -37,6 +60,7 @@ export interface OrderItem {
   status: OrderItemStatus;
   createdAt: string; // เวลาสั่ง
   servedAt: string | null; // เวลาเสิร์ฟ
+  modifiers?: OrderItemModifier[]; // ตัวเลือกที่เลือก (priceDelta รวมใน unitPrice แล้ว)
 }
 
 export interface ServiceRequest {
@@ -84,11 +108,15 @@ export interface Session extends Bill {
 }
 
 // ตะกร้าฝั่ง client (local ต่อเครื่อง — ดู decision multi-device)
+// แต่ละบรรทัดมี lineId เฉพาะ เพราะเมนูเดียวกันที่เลือกตัวเลือกต่างกันต้องแยกบรรทัด
 export interface CartLine {
+  lineId: string;
   menuId: number;
   name: string;
-  price: number; // สตางค์
+  price: number; // สตางค์ ต่อหน่วย (รวมราคาตัวเลือกแล้ว)
   quantity: number;
   note?: string; // หมายเหตุที่ลูกค้ากรอกต่อรายการ
   imageUrl: string | null;
+  selectedOptionIds: number[]; // ส่งให้ backend ตอนสั่ง
+  modifiers: { name: string; priceDelta: number }[]; // ไว้โชว์ในตะกร้า
 }

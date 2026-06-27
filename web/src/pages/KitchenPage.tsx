@@ -109,6 +109,11 @@ export function KitchenPage() {
                     <span className="min-w-0">
                       <span className="truncate">{item.itemName}</span>{' '}
                       <span className="text-slate-400">×{item.quantity}</span>
+                      {item.modifiers && item.modifiers.length > 0 && (
+                        <span className="mt-0.5 block text-xs font-medium text-orange-700">
+                          + {item.modifiers.map((m) => m.name).join(', ')}
+                        </span>
+                      )}
                       {item.note && (
                         <span className="mt-0.5 block rounded bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-800">
                           📝 {item.note}

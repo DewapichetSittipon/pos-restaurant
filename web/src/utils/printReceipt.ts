@@ -31,6 +31,7 @@ function escapeHtml(text: string): string {
 // รวมรายการที่เป็นเมนูเดียวกัน (สั่งหลายรอบ/หลาย batch) ให้เหลือบรรทัดเดียว
 interface ReceiptLine {
   name: string;
+  modifiers: string; // ชื่อตัวเลือกรวมเป็นข้อความเดียว (ว่าง = ไม่มี)
   quantity: number;
   unitPrice: number;
   amount: number;
@@ -39,7 +40,8 @@ interface ReceiptLine {
 function aggregate(items: CheckoutResult['orderItems']): ReceiptLine[] {
   const map = new Map<string, ReceiptLine>();
   for (const it of items) {
-    const key = `${it.menuId}:${it.unitPrice}`;
+    const mods = (it.modifiers ?? []).map((m) => m.name).join(', ');
+    const key = `${it.menuId}:${it.unitPrice}:${mods}`;
     const line = map.get(key);
     if (line) {
       line.quantity += it.quantity;
@@ -47,6 +49,7 @@ function aggregate(items: CheckoutResult['orderItems']): ReceiptLine[] {
     } else {
       map.set(key, {
         name: it.itemName,
+        modifiers: mods,
         quantity: it.quantity,
         unitPrice: it.unitPrice,
         amount: it.unitPrice * it.quantity,
@@ -155,7 +158,11 @@ export async function printReceipt(bill: CheckoutResult): Promise<void> {
     .map(
       (l) => `
       <tr class="item">
-        <td class="name" colspan="2">${escapeHtml(l.name)}</td>
+        <td class="name" colspan="2">${escapeHtml(l.name)}${
+          l.modifiers
+            ? `<div class="sub">+ ${escapeHtml(l.modifiers)}</div>`
+            : ''
+        }</td>
       </tr>
       <tr class="item">
         <td class="qty">${l.quantity} x ${baht(l.unitPrice)}</td>

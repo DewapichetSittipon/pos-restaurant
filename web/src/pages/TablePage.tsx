@@ -16,6 +16,7 @@ import { MenuCard } from '../components/MenuCard';
 import { OrderSheet } from '../components/OrderSheet';
 import { CartBar } from '../components/CartBar';
 import { CartDrawer } from '../components/CartDrawer';
+import { ModifierPicker } from '../components/ModifierPicker';
 import { CenterMessage } from '../components/CenterMessage';
 
 export function TablePage() {
@@ -50,12 +51,14 @@ function TableContent({ tableId, token }: TableContentProps) {
   const { categories, loading: menuLoading } = useMenu();
 
   const addItem = useCartStore((s) => s.addItem);
+  const addLine = useCartStore((s) => s.addLine);
   const clearCart = useCartStore((s) => s.clear);
   const cartLines = useCartStore((s) => s.lines);
   const totalQty = useCartStore(selectTotalQuantity);
   const totalPrice = useCartStore(selectTotalPrice);
 
   const [selectedCat, setSelectedCat] = useState<number | null>(null);
+  const [pickerMenu, setPickerMenu] = useState<MenuItem | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
   const [orderOpen, setOrderOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -87,6 +90,15 @@ function TableContent({ tableId, token }: TableContentProps) {
     window.setTimeout(() => setBanner(null), 2500);
   }
 
+  // เมนูมีตัวเลือก → เปิดโมดอลให้เลือกก่อน; ไม่มี → ใส่ตะกร้าเลย
+  function handleAdd(menu: MenuItem): void {
+    if (menu.modifierGroups && menu.modifierGroups.length > 0) {
+      setPickerMenu(menu);
+    } else {
+      addItem(menu);
+    }
+  }
+
   async function handleSubmit(): Promise<void> {
     setSubmitting(true);
     try {
@@ -95,6 +107,9 @@ function TableContent({ tableId, token }: TableContentProps) {
           menuId: l.menuId,
           quantity: l.quantity,
           note: l.note?.trim() || undefined,
+          modifierOptionIds: l.selectedOptionIds.length
+            ? l.selectedOptionIds
+            : undefined,
         })),
       });
       clearCart();
@@ -213,9 +228,18 @@ function TableContent({ tableId, token }: TableContentProps) {
 
       <section className="mt-4 space-y-3">
         {activeMenus.map((menu) => (
-          <MenuCard key={menu.id} menu={menu} onAdd={addItem} />
+          <MenuCard key={menu.id} menu={menu} onAdd={handleAdd} />
         ))}
       </section>
+
+      <ModifierPicker
+        menu={pickerMenu}
+        onClose={() => setPickerMenu(null)}
+        onConfirm={(menu, options) => {
+          addLine(menu, options);
+          setPickerMenu(null);
+        }}
+      />
 
       <CartBar quantity={totalQty} total={totalPrice} onOpen={() => setCartOpen(true)} />
       <CartDrawer

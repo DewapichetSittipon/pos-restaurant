@@ -7,6 +7,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Put,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -14,7 +15,11 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Bill, Table } from '@prisma/client';
 import { MenusService } from './menus.service';
-import { CreateMenuDto, UpdateMenuDto } from './dto/menu.dto';
+import {
+  CreateMenuDto,
+  UpdateMenuDto,
+  SetMenuModifiersDto,
+} from './dto/menu.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ActiveShopGuard } from '../auth/active-shop.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -80,6 +85,17 @@ export class MenusController {
   @Roles('OWNER')
   clearImage(@CurrentShop() shopId: number, @Param('id', ParseIntPipe) id: number) {
     return this.menus.clearImage(shopId, id);
+  }
+
+  // ตั้งค่าตัวเลือก (modifiers) ของเมนู — แทนที่ทั้งชุด
+  @Put(':id/modifiers')
+  @Roles('OWNER')
+  setModifiers(
+    @CurrentShop() shopId: number,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: SetMenuModifiersDto,
+  ) {
+    return this.menus.setMenuModifiers(shopId, id, dto.groups);
   }
 }
 

@@ -4,10 +4,12 @@ import type {
   AuditLogEntry,
   CategoryRow,
   CreateMenuInput,
+  ModifierGroupInput,
   ShopInfo,
   UpdateMenuInput,
   UpdateShopInput,
 } from '../type/manage';
+import type { ModifierGroup } from '../type/domain';
 
 // ----- ข้อมูลร้าน / หัวใบเสร็จ -----
 export async function fetchShop(): Promise<ShopInfo> {
@@ -83,4 +85,16 @@ export async function uploadMenuImage(id: number, file: File): Promise<void> {
 
 export async function clearMenuImage(id: number): Promise<void> {
   await api.delete(`/menus/${id}/image`);
+}
+
+// ตั้งค่าตัวเลือก (modifiers) ของเมนู — แทนที่ทั้งชุด
+export async function setMenuModifiers(
+  menuId: number,
+  groups: ModifierGroupInput[],
+): Promise<ModifierGroup[]> {
+  const { data } = await api.put<ModifierGroup[]>(
+    `/menus/${menuId}/modifiers`,
+    { groups },
+  );
+  return data;
 }

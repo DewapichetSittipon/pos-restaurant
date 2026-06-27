@@ -1,4 +1,7 @@
+import { Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  IsArray,
   IsBoolean,
   IsInt,
   IsOptional,
@@ -6,6 +9,7 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateNested,
 } from 'class-validator';
 
 export class CreateMenuDto {
@@ -52,4 +56,50 @@ export class UpdateMenuDto {
   @IsOptional()
   @IsBoolean()
   isAvailable?: boolean;
+}
+
+// --- Modifiers (ตัวเลือกเมนู) ---
+
+export class ModifierOptionInput {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(60)
+  name!: string;
+
+  @IsInt()
+  @Min(0)
+  priceDelta!: number; // สตางค์ (0 = ไม่บวกเพิ่ม)
+
+  @IsOptional()
+  @IsBoolean()
+  isAvailable?: boolean;
+}
+
+export class ModifierGroupInput {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(60)
+  name!: string;
+
+  @IsInt()
+  @Min(0)
+  minSelect!: number; // 0 = ไม่บังคับ
+
+  @IsInt()
+  @Min(1)
+  maxSelect!: number; // เลือกได้สูงสุดกี่ตัว
+
+  @IsArray()
+  @ArrayMaxSize(50)
+  @ValidateNested({ each: true })
+  @Type(() => ModifierOptionInput)
+  options!: ModifierOptionInput[];
+}
+
+export class SetMenuModifiersDto {
+  @IsArray()
+  @ArrayMaxSize(20)
+  @ValidateNested({ each: true })
+  @Type(() => ModifierGroupInput)
+  groups!: ModifierGroupInput[];
 }
