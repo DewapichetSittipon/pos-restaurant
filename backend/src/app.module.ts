@@ -19,6 +19,7 @@ import { ReservationsModule } from './reservations/reservations.module';
 import { MembersModule } from './members/members.module';
 import { AuditModule } from './audit/audit.module';
 import { StorageModule } from './uploads/storage.module';
+import { NotificationModule } from './notifications/notification.module';
 import { HealthController } from './health/health.controller';
 
 @Module({
@@ -44,6 +45,7 @@ import { HealthController } from './health/health.controller';
     MembersModule,
     AuditModule,
     StorageModule,
+    NotificationModule,
   ],
   controllers: [HealthController],
 })

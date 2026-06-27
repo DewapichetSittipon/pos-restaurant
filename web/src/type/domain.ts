@@ -71,6 +71,7 @@ export interface Bill {
   pointsEarned: number; // แต้มที่ได้จากบิลนี้
   pointsRedeemed: number; // แต้มที่ใช้แลกส่วนลด
   status: BillStatus;
+  receiptNumber: number | null; // เลขที่ใบเสร็จ/ใบกำกับภาษี (set ตอนชำระ)
   qrToken: string;
   createdAt: string;
   paidAt: string | null;

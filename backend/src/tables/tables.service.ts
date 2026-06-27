@@ -390,11 +390,20 @@ export class TablesService {
         select: { id: true },
       });
 
+      // เลขที่ใบเสร็จ/ใบกำกับภาษีแบบรันต่อเนื่อง — increment atomic บนแถวร้าน (กันเลขซ้ำ/ข้ามตอน checkout พร้อมกัน)
+      const shopAfter = await tx.shop.update({
+        where: { id: shopId },
+        data: { receiptCounter: { increment: 1 } },
+        select: { receiptCounter: true },
+      });
+      const receiptNumber = shopAfter.receiptCounter;
+
       const paid = await tx.bill.update({
         where: { id: bill.id },
         data: {
           status: 'paid',
           paidAt: new Date(),
+          receiptNumber,
           totalPrice: total,
           discount,
           serviceCharge,

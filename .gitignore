@@ -13,3 +13,6 @@ backend/uploads/
 
 # TypeScript build info
 *.tsbuildinfo
+
+# DB backups (ไฟล์ dump ที่รันมือ)
+backups/
