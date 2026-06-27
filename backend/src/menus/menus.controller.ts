@@ -19,6 +19,8 @@ import {
   CreateMenuDto,
   UpdateMenuDto,
   SetMenuModifiersDto,
+  CreateComboDto,
+  SetComboComponentsDto,
 } from './dto/menu.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ActiveShopGuard } from '../auth/active-shop.guard';
@@ -49,6 +51,24 @@ export class MenusController {
   @Roles('OWNER')
   create(@CurrentShop() shopId: number, @Body() dto: CreateMenuDto) {
     return this.menus.create(shopId, dto);
+  }
+
+  // สร้างชุด/คอมโบ (เมนู isCombo + ส่วนประกอบ); แก้ชื่อ/ราคา/รูป/งดขาย ใช้ endpoint เมนูปกติ
+  @Post('combos')
+  @Roles('OWNER')
+  createCombo(@CurrentShop() shopId: number, @Body() dto: CreateComboDto) {
+    return this.menus.createCombo(shopId, dto);
+  }
+
+  // แทนที่รายการส่วนประกอบของชุดทั้งชุด
+  @Put(':id/combo-components')
+  @Roles('OWNER')
+  setComboComponents(
+    @CurrentShop() shopId: number,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: SetComboComponentsDto,
+  ) {
+    return this.menus.setComboComponents(shopId, id, dto.components);
   }
 
   @Patch(':id')

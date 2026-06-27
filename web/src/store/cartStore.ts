@@ -84,6 +84,13 @@ export const useCartStore = create<CartState>((set) => ({
             imageUrl: menu.imageUrl,
             selectedOptionIds: [],
             modifiers: [],
+            // ชุด/คอมโบ: พ่วงส่วนประกอบไว้โชว์ในตะกร้า
+            comboItems: menu.isCombo
+              ? (menu.comboComponents ?? []).map((c) => ({
+                  name: c.menu.name,
+                  quantity: c.quantity,
+                }))
+              : undefined,
           },
         ],
       };

@@ -1,5 +1,6 @@
 import { useCartStore, selectTotalPrice } from '../store/cartStore';
 import { formatBaht } from '../utils/money';
+import { formatComboItems } from '../utils/menu';
 import { MenuThumb } from './MenuThumb';
 
 interface CartDrawerProps {
@@ -50,6 +51,11 @@ export function CartDrawer({ open, submitting, onClose, onSubmit }: CartDrawerPr
                     {line.modifiers.length > 0 && (
                       <p className="truncate text-xs text-slate-500">
                         {line.modifiers.map((m) => m.name).join(', ')}
+                      </p>
+                    )}
+                    {line.comboItems && line.comboItems.length > 0 && (
+                      <p className="truncate text-xs text-violet-600">
+                        {formatComboItems(line.comboItems)}
                       </p>
                     )}
                     <p className="text-sm font-semibold text-orange-600">{formatBaht(line.price)}</p>

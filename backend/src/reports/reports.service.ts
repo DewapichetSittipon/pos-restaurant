@@ -406,7 +406,7 @@ export class ReportsService {
     return this.prisma.$transaction(async (tx) => {
       const bill = await tx.bill.findFirst({
         where: { id: billId, shopId },
-        include: { orderItems: true },
+        include: { orderItems: { include: { comboItems: true } } },
       });
       if (!bill) throw new NotFoundException('ไม่พบบิล');
       if (bill.status !== 'paid') {
@@ -417,10 +417,21 @@ export class ReportsService {
         for (const oi of bill.orderItems) {
           if (oi.status === 'voided') continue;
           // คืนเฉพาะเมนูที่นับสต็อก (stock_count ไม่ใช่ null)
-          await tx.menu.updateMany({
-            where: { id: oi.menuId, stockCount: { not: null } },
-            data: { stockCount: { increment: oi.quantity } },
-          });
+          if (oi.comboItems.length > 0) {
+            // combo: คืนสต็อกที่ส่วนประกอบ (qty ในเซต × จำนวนชุด)
+            for (const c of oi.comboItems) {
+              if (c.menuId === null) continue;
+              await tx.menu.updateMany({
+                where: { id: c.menuId, stockCount: { not: null } },
+                data: { stockCount: { increment: c.quantity * oi.quantity } },
+              });
+            }
+          } else {
+            await tx.menu.updateMany({
+              where: { id: oi.menuId, stockCount: { not: null } },
+              data: { stockCount: { increment: oi.quantity } },
+            });
+          }
         }
       }
 
@@ -446,7 +457,7 @@ export class ReportsService {
         orderItems: {
           where: { status: { not: 'voided' } },
           orderBy: { createdAt: 'asc' },
-          include: { modifiers: true },
+          include: { modifiers: true, comboItems: true },
         },
       },
     });

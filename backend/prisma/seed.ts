@@ -73,6 +73,30 @@ async function seedShop(opts: {
     ],
   });
 
+  // --- ชุด/คอมโบ (ราคาคงที่) ตัวอย่าง: ข้าวผัดหมู + โค้ก ---
+  const [khaoPad, coke] = await Promise.all([
+    prisma.menu.findFirst({ where: { shopId: shop.id, name: 'ข้าวผัดหมู' } }),
+    prisma.menu.findFirst({ where: { shopId: shop.id, name: 'โค้ก' } }),
+  ]);
+  if (khaoPad && coke) {
+    await prisma.menu.create({
+      data: {
+        shopId: shop.id,
+        categoryId: mains.id,
+        name: 'ชุดข้าวผัดหมู + โค้ก',
+        price: baht(75), // ถูกกว่าซื้อแยก (60 + 25 = 85)
+        stockCount: null,
+        isCombo: true,
+        comboComponents: {
+          create: [
+            { menuId: khaoPad.id, quantity: 1, sortOrder: 0 },
+            { menuId: coke.id, quantity: 1, sortOrder: 1 },
+          ],
+        },
+      },
+    });
+  }
+
   // --- พนักงาน: คนแรกของร้าน = เจ้าของร้าน (OWNER) เห็นทุกหน้า ---
   await prisma.staff.create({
     data: {

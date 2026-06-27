@@ -1,7 +1,7 @@
 import type { OrderItem } from '../type/domain';
 import { formatBaht } from '../utils/money';
 import { formatTime } from '../utils/datetime';
-import { groupByBatch } from '../utils/menu';
+import { groupByBatch, formatComboItems } from '../utils/menu';
 import { StatusBadge } from './StatusBadge';
 import { MenuThumb } from './MenuThumb';
 
@@ -42,6 +42,11 @@ export function OrderHistory({ items }: OrderHistoryProps) {
                   {item.modifiers && item.modifiers.length > 0 && (
                     <span className="block text-xs font-medium text-orange-600">
                       + {item.modifiers.map((m) => m.name).join(', ')}
+                    </span>
+                  )}
+                  {item.comboItems && item.comboItems.length > 0 && (
+                    <span className="block text-xs text-violet-600">
+                      {formatComboItems(item.comboItems)}
                     </span>
                   )}
                   {item.note && (

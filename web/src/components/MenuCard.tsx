@@ -17,8 +17,22 @@ export function MenuCard({ menu, onAdd }: MenuCardProps) {
     <div className="flex items-center gap-3 rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-100 transition active:scale-[0.99]">
       <MenuThumb imageUrl={menu.imageUrl} alt={menu.name} className="h-16 w-16" />
       <div className="min-w-0 flex-1">
-        <p className="truncate font-semibold text-slate-800">{menu.name}</p>
+        <p className="truncate font-semibold text-slate-800">
+          {menu.name}
+          {menu.isCombo && (
+            <span className="ml-1.5 rounded bg-violet-100 px-1.5 py-0.5 text-xs font-medium text-violet-700">
+              ชุด
+            </span>
+          )}
+        </p>
         <p className="text-sm font-semibold text-orange-600">{formatBaht(menu.price)}</p>
+        {menu.isCombo && menu.comboComponents && menu.comboComponents.length > 0 && (
+          <p className="mt-0.5 truncate text-xs text-slate-400">
+            {menu.comboComponents
+              .map((c) => (c.quantity > 1 ? `${c.menu.name}×${c.quantity}` : c.menu.name))
+              .join(' + ')}
+          </p>
+        )}
         {orderable && lowStock && (
           <p className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-600">
             🔥 เหลือ {menu.stockCount} ที่

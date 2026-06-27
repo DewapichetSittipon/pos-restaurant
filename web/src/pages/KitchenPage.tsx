@@ -10,6 +10,7 @@ import { SOCKET_EVENTS } from '../services/socket';
 import type { ActiveOrderItem } from '../type/staff';
 import { StatusBadge } from '../components/StatusBadge';
 import { formatTime } from '../utils/datetime';
+import { formatComboItems } from '../utils/menu';
 
 interface Ticket {
   batchId: string;
@@ -112,6 +113,11 @@ export function KitchenPage() {
                       {item.modifiers && item.modifiers.length > 0 && (
                         <span className="mt-0.5 block text-xs font-medium text-orange-700">
                           + {item.modifiers.map((m) => m.name).join(', ')}
+                        </span>
+                      )}
+                      {item.comboItems && item.comboItems.length > 0 && (
+                        <span className="mt-0.5 block rounded bg-violet-100 px-1.5 py-0.5 text-xs font-semibold text-violet-800">
+                          🍱 {formatComboItems(item.comboItems)}
                         </span>
                       )}
                       {item.note && (

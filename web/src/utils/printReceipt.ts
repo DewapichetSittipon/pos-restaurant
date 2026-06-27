@@ -1,6 +1,26 @@
 import QRCode from 'qrcode';
 import type { CheckoutResult } from '../type/staff';
 import { promptpayPayload } from './promptpay';
+import { getPrintMode, getPrinterDots } from './printSettings';
+import { isWebUsbSupported, buildReceiptPayload, sendToPrinter } from './escpos';
+import { renderReceiptCanvas } from './receiptCanvas';
+
+// จุดเข้าเดียวสำหรับพิมพ์ใบเสร็จ — เลือกช่องทางตามค่าตั้งของอุปกรณ์
+// thermal (WebUSB) เมื่อเลือกไว้+เบราว์เซอร์รองรับ; ถ้าพิมพ์ตรงล้มเหลว fallback เป็น window.print()
+export async function printReceipt(bill: CheckoutResult): Promise<void> {
+  if (getPrintMode() === 'thermal' && isWebUsbSupported()) {
+    try {
+      const canvas = await renderReceiptCanvas(bill, getPrinterDots());
+      await sendToPrinter(buildReceiptPayload(canvas));
+      return;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'พิมพ์ผ่านเครื่อง thermal ไม่สำเร็จ';
+      window.alert(`${msg}\nจะใช้การพิมพ์ผ่านเบราว์เซอร์แทน`);
+      // ตกลงมาใช้ window.print() ด้านล่าง
+    }
+  }
+  await printReceiptBrowser(bill);
+}
 
 // แปลงสตางค์ -> ตัวเลขบาท (ไม่มีสัญลักษณ์ ฿ เพราะ thermal บางตัวพิมพ์ไม่ได้)
 function baht(satang: number): string {
@@ -60,7 +80,7 @@ function aggregate(items: CheckoutResult['orderItems']): ReceiptLine[] {
 }
 
 // พิมพ์ใบเสร็จขนาด 80mm ผ่าน window.print() (async เพราะสร้าง QR PromptPay)
-export async function printReceipt(bill: CheckoutResult): Promise<void> {
+async function printReceiptBrowser(bill: CheckoutResult): Promise<void> {
   const lines = aggregate(bill.orderItems);
   const subtotal = bill.subtotal ?? lines.reduce((s, l) => s + l.amount, 0);
   const discount = bill.discount ?? 0;

@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { ManageTables } from '../components/manage/ManageTables';
 import { ManageCategories } from '../components/manage/ManageCategories';
 import { ManageMenus } from '../components/manage/ManageMenus';
+import { ManageCombos } from '../components/manage/ManageCombos';
 import { ManageShop } from '../components/manage/ManageShop';
+import { ManagePrinter } from '../components/manage/ManagePrinter';
 import { ManageAccount } from '../components/manage/ManageAccount';
 import { ManageStaff } from '../components/manage/ManageStaff';
 import { ManageMembers } from '../components/manage/ManageMembers';
@@ -12,7 +14,9 @@ type Tab =
   | 'tables'
   | 'categories'
   | 'menus'
+  | 'combos'
   | 'shop'
+  | 'printer'
   | 'staff'
   | 'members'
   | 'audit'
@@ -22,7 +26,9 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'tables', label: 'โต๊ะ' },
   { key: 'categories', label: 'หมวดหมู่' },
   { key: 'menus', label: 'เมนู' },
+  { key: 'combos', label: 'ชุด/คอมโบ' },
   { key: 'shop', label: 'ข้อมูลร้าน' },
+  { key: 'printer', label: 'พิมพ์' },
   { key: 'staff', label: 'พนักงาน' },
   { key: 'members', label: 'สมาชิก' },
   { key: 'audit', label: 'บันทึก' },
@@ -54,7 +60,9 @@ export function ManagePage() {
       {tab === 'tables' && <ManageTables />}
       {tab === 'categories' && <ManageCategories />}
       {tab === 'menus' && <ManageMenus />}
+      {tab === 'combos' && <ManageCombos />}
       {tab === 'shop' && <ManageShop />}
+      {tab === 'printer' && <ManagePrinter />}
       {tab === 'staff' && <ManageStaff />}
       {tab === 'members' && <ManageMembers />}
       {tab === 'audit' && <ManageAudit />}

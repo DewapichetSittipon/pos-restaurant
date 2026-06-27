@@ -70,3 +70,16 @@ export interface ModifierGroupInput {
   maxSelect: number;
   options: ModifierOptionInput[];
 }
+
+// payload สร้างชุด/คอมโบ (POST /menus/combos)
+export interface ComboComponentInput {
+  menuId: number;
+  quantity: number;
+}
+
+export interface CreateComboInput {
+  categoryId: number;
+  name: string;
+  price: number; // สตางค์ — ราคาคงที่ทั้งเซต
+  components: ComboComponentInput[];
+}

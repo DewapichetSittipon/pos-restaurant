@@ -21,16 +21,32 @@ export interface ModifierGroup {
   options: ModifierOption[];
 }
 
+// ส่วนประกอบในนิยามของชุด/คอมโบ (จาก catalog) — menu = เมนูจริงที่เป็นส่วนประกอบ
+export interface ComboComponentDef {
+  id: number;
+  menuId: number;
+  quantity: number;
+  menu: { id: number; name: string };
+}
+
 export interface MenuItem {
   id: number;
   categoryId: number;
   name: string;
-  price: number; // สตางค์
+  price: number; // สตางค์ (combo: ราคาคงที่ทั้งเซต)
   stockCount: number | null; // null = ไม่นับสต็อก
   isAvailable: boolean;
   isArchived: boolean;
+  isCombo: boolean; // true = ชุด/คอมโบ (ราคาคงที่ แตกเป็นส่วนประกอบ)
   imageUrl: string | null; // path รูป (null = ใช้ placeholder)
   modifierGroups?: ModifierGroup[]; // ตัวเลือก (ขนาด/ระดับ/ท็อปปิ้ง)
+  comboComponents?: ComboComponentDef[]; // รายการในเซต (เฉพาะ isCombo)
+}
+
+// snapshot ส่วนประกอบของ combo บน OrderItem (ไว้โชว์ครัว/ใบเสร็จ)
+export interface OrderItemComboComponent {
+  name: string;
+  quantity: number;
 }
 
 // ตัวเลือกที่ถูกเลือก (snapshot บน OrderItem)
@@ -61,6 +77,7 @@ export interface OrderItem {
   createdAt: string; // เวลาสั่ง
   servedAt: string | null; // เวลาเสิร์ฟ
   modifiers?: OrderItemModifier[]; // ตัวเลือกที่เลือก (priceDelta รวมใน unitPrice แล้ว)
+  comboItems?: OrderItemComboComponent[]; // ส่วนประกอบในชุด (เฉพาะรายการ combo)
 }
 
 export interface ServiceRequest {
@@ -125,4 +142,5 @@ export interface CartLine {
   imageUrl: string | null;
   selectedOptionIds: number[]; // ส่งให้ backend ตอนสั่ง
   modifiers: { name: string; priceDelta: number }[]; // ไว้โชว์ในตะกร้า
+  comboItems?: OrderItemComboComponent[]; // ส่วนประกอบในชุด (ไว้โชว์ในตะกร้า; เฉพาะ combo)
 }

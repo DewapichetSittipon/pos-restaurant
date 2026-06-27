@@ -196,11 +196,13 @@ export function ManageMenus() {
         {categories.map((cat) => (
           <div key={cat.id}>
             <h3 className="mb-2 text-sm font-semibold text-slate-500">{cat.name}</h3>
-            {cat.menus.length === 0 ? (
+            {cat.menus.filter((m) => !m.isCombo).length === 0 ? (
               <p className="text-sm text-slate-400">— ยังไม่มีเมนู —</p>
             ) : (
               <ul className="space-y-2">
-                {cat.menus.map((m) => (
+                {cat.menus
+                  .filter((m) => !m.isCombo)
+                  .map((m) => (
                   <li
                     key={m.id}
                     className="rounded-lg border border-slate-200 px-3 py-2.5"

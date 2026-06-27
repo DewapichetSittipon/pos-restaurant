@@ -9,6 +9,8 @@ import type {
   CreateMenuDto,
   UpdateMenuDto,
   ModifierGroupInput,
+  CreateComboDto,
+  ComboComponentInput,
 } from './dto/menu.dto';
 import {
   ALLOWED_IMAGE_MIME,
@@ -38,6 +40,10 @@ export class MenusService {
             modifierGroups: {
               orderBy: { sortOrder: 'asc' },
               include: { options: { orderBy: { sortOrder: 'asc' } } },
+            },
+            comboComponents: {
+              orderBy: { sortOrder: 'asc' },
+              include: { menu: { select: { id: true, name: true } } },
             },
           },
         },
@@ -87,6 +93,88 @@ export class MenusService {
         include: { options: { orderBy: { sortOrder: 'asc' } } },
       });
     });
+  }
+
+  // สร้างชุด/คอมโบ = เมนูที่ isCombo=true (ราคาคงที่, ไม่นับสต็อกตัวเอง) + รายการส่วนประกอบ
+  async createCombo(shopId: number, dto: CreateComboDto) {
+    await this.assertCategoryOwned(shopId, dto.categoryId);
+    await this.assertComboComponents(shopId, dto.components);
+    return this.prisma.menu.create({
+      data: {
+        shopId,
+        categoryId: dto.categoryId,
+        name: dto.name.trim(),
+        price: dto.price, // สตางค์ — ราคาคงที่ของทั้งเซต
+        stockCount: null, // combo อิงสต็อกส่วนประกอบ
+        isCombo: true,
+        comboComponents: {
+          create: dto.components.map((c, i) => ({
+            menuId: c.menuId,
+            quantity: c.quantity,
+            sortOrder: i,
+          })),
+        },
+      },
+      include: { comboComponents: { include: { menu: { select: { id: true, name: true } } } } },
+    });
+  }
+
+  // แทนที่รายการส่วนประกอบของ combo ทั้งชุด (ลบเดิม สร้างใหม่) — ปลอดภัยกับประวัติ
+  // (OrderItemComboComponent เป็น snapshot ไม่ผูก FK กับ ComboComponent)
+  async setComboComponents(
+    shopId: number,
+    comboMenuId: number,
+    components: ComboComponentInput[],
+  ) {
+    const combo = await this.prisma.menu.findFirst({
+      where: { id: comboMenuId, shopId, isCombo: true },
+      select: { id: true },
+    });
+    if (!combo) {
+      throw new NotFoundException('ไม่พบชุด/คอมโบ');
+    }
+    await this.assertComboComponents(shopId, components);
+    return this.prisma.$transaction(async (tx) => {
+      await tx.comboComponent.deleteMany({ where: { comboMenuId } });
+      for (const [i, c] of components.entries()) {
+        await tx.comboComponent.create({
+          data: { comboMenuId, menuId: c.menuId, quantity: c.quantity, sortOrder: i },
+        });
+      }
+      return tx.comboComponent.findMany({
+        where: { comboMenuId },
+        orderBy: { sortOrder: 'asc' },
+        include: { menu: { select: { id: true, name: true } } },
+      });
+    });
+  }
+
+  // ส่วนประกอบต้อง: ไม่ว่าง, ไม่ซ้ำเมนู, เป็นเมนูจริงของร้านนี้ (ไม่ archived) และ "ไม่ใช่ combo" (กันซ้อน)
+  private async assertComboComponents(
+    shopId: number,
+    components: ComboComponentInput[],
+  ): Promise<void> {
+    if (components.length === 0) {
+      throw new BadRequestException('ต้องมีอย่างน้อย 1 รายการในชุด');
+    }
+    const ids = components.map((c) => c.menuId);
+    if (new Set(ids).size !== ids.length) {
+      throw new BadRequestException('มีเมนูซ้ำในชุด');
+    }
+    const menus = await this.prisma.menu.findMany({
+      where: { id: { in: ids }, shopId, isArchived: false },
+      select: { id: true, isCombo: true, name: true },
+    });
+    const byId = new Map(menus.map((m) => [m.id, m]));
+    for (const id of ids) {
+      const m = byId.get(id);
+      if (!m) {
+        throw new BadRequestException('มีเมนูในชุดที่ไม่ถูกต้อง (ไม่ใช่ของร้านนี้)');
+      }
+      if (m.isCombo) {
+        throw new BadRequestException(`"${m.name}" เป็นชุดอยู่แล้ว ใส่ซ้อนในชุดไม่ได้`);
+      }
+    }
   }
 
   // เพิ่มเมนูใหม่ — categoryId ต้องเป็นของร้านนี้

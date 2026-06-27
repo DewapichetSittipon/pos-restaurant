@@ -103,3 +103,42 @@ export class SetMenuModifiersDto {
   @Type(() => ModifierGroupInput)
   groups!: ModifierGroupInput[];
 }
+
+// --- Combo / Set menu (static set, ราคาคงที่) ---
+
+export class ComboComponentInput {
+  @IsInt()
+  menuId!: number; // เมนูจริงที่เป็นส่วนประกอบ (ห้ามเป็น combo เอง — เช็คใน service)
+
+  @IsInt()
+  @Min(1)
+  quantity!: number;
+}
+
+export class CreateComboDto {
+  @IsInt()
+  categoryId!: number;
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(80)
+  name!: string;
+
+  @IsInt()
+  @Min(0)
+  price!: number; // สตางค์ — ราคาคงที่ของทั้งเซต
+
+  @IsArray()
+  @ArrayMaxSize(30)
+  @ValidateNested({ each: true })
+  @Type(() => ComboComponentInput)
+  components!: ComboComponentInput[];
+}
+
+export class SetComboComponentsDto {
+  @IsArray()
+  @ArrayMaxSize(30)
+  @ValidateNested({ each: true })
+  @Type(() => ComboComponentInput)
+  components!: ComboComponentInput[];
+}

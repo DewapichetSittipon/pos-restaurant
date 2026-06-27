@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
+import { Prisma } from '@prisma/client';
 import type { OrderItem } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsGateway } from '../events/events.gateway';
@@ -28,13 +29,26 @@ export class OrdersService {
       for (const line of items) {
         const menu = await tx.menu.findFirst({
           where: { id: line.menuId, shopId },
-          include: { modifierGroups: { include: { options: true } } },
+          include: {
+            modifierGroups: { include: { options: true } },
+            comboComponents: {
+              orderBy: { sortOrder: 'asc' },
+              include: { menu: true },
+            },
+          },
         });
         if (!menu || menu.isArchived) {
           throw new NotFoundException(`ไม่พบเมนู (id ${line.menuId})`);
         }
         if (!menu.isAvailable) {
           throw new BadRequestException(`"${menu.name}" งดขายอยู่`);
+        }
+
+        // ชุด/คอมโบ: ราคาคงที่ทั้งเซต, แตกเป็นส่วนประกอบให้ครัว, ตัดสต็อกตามส่วนประกอบ
+        if (menu.isCombo) {
+          const item = await this.createComboItem(tx, billId, batchId, menu, line);
+          result.push(item);
+          continue;
         }
 
         // ตรวจตัวเลือก (modifiers): ต้องเป็นของเมนูนี้ + พร้อมขาย + ตรงกฎ min/max ต่อกลุ่ม
@@ -116,6 +130,64 @@ export class OrdersService {
     return payload;
   }
 
+  // สร้าง OrderItem ของชุด/คอมโบ: ราคาคงที่ (menu.price) + snapshot ส่วนประกอบให้ครัว
+  // ตัดสต็อกของส่วนประกอบที่นับสต็อก (qty ในเซต × จำนวนชุดที่สั่ง) แบบ conditional update
+  private async createComboItem(
+    tx: Prisma.TransactionClient,
+    billId: number,
+    batchId: string,
+    menu: Prisma.MenuGetPayload<{
+      include: { comboComponents: { include: { menu: true } } };
+    }>,
+    line: OrderLineDto,
+  ): Promise<OrderItem> {
+    if (line.modifierOptionIds && line.modifierOptionIds.length > 0) {
+      throw new BadRequestException(`"${menu.name}" เป็นชุด เลือกตัวเลือกเพิ่มไม่ได้`);
+    }
+    if (menu.comboComponents.length === 0) {
+      throw new BadRequestException(`"${menu.name}" ยังไม่ได้กำหนดรายการในชุด`);
+    }
+
+    for (const comp of menu.comboComponents) {
+      if (comp.menu.isArchived || !comp.menu.isAvailable) {
+        throw new BadRequestException(`"${comp.menu.name}" ในชุดงดขายอยู่`);
+      }
+      // หักสต็อกเฉพาะส่วนประกอบที่นับสต็อก: ต้องพอสำหรับ (qty ในเซต × จำนวนชุด)
+      if (comp.menu.stockCount !== null) {
+        const needed = comp.quantity * line.quantity;
+        const dec = await tx.menu.updateMany({
+          where: { id: comp.menuId, stockCount: { gte: needed } },
+          data: { stockCount: { decrement: needed } },
+        });
+        if (dec.count === 0) {
+          throw new ConflictException(`"${comp.menu.name}" ของไม่พอ/หมดแล้ว`);
+        }
+      }
+    }
+
+    return tx.orderItem.create({
+      data: {
+        billId,
+        menuId: menu.id,
+        batchId,
+        quantity: line.quantity,
+        unitPrice: menu.price, // สตางค์ — ราคาคงที่ของทั้งเซต
+        itemName: menu.name,
+        note: line.note?.trim() || null,
+        imageUrl: menu.imageUrl,
+        // snapshot ส่วนประกอบ (qty ต่อหนึ่งชุด) ไว้โชว์ครัว/ใบเสร็จ
+        comboItems: {
+          create: menu.comboComponents.map((c) => ({
+            menuId: c.menuId,
+            name: c.menu.name,
+            quantity: c.quantity,
+          })),
+        },
+      },
+      include: { modifiers: true, comboItems: true },
+    });
+  }
+
   // พนักงานคีย์ออเดอร์ให้โต๊ะ (walk-in / สั่งปากเปล่า) — resolve บิลที่เปิดอยู่ของโต๊ะ
   // แล้ว reuse logic เดียวกับฝั่งลูกค้า (หักสต็อก + snapshot + push)
   async createByStaff(shopId: number, tableId: number, items: OrderLineDto[]) {
@@ -152,7 +224,11 @@ export class OrdersService {
         bill: { status: 'pending', shopId },
       },
       orderBy: { createdAt: 'asc' },
-      include: { bill: { include: { table: true } }, modifiers: true },
+      include: {
+        bill: { include: { table: true } },
+        modifiers: true,
+        comboItems: true,
+      },
     });
   }
 
@@ -195,7 +271,22 @@ export class OrdersService {
       // คืนสต็อกเฉพาะตอนยังไม่เริ่มทำ
       if (item.status === 'queued') {
         const menu = await tx.menu.findUnique({ where: { id: item.menuId } });
-        if (menu && menu.stockCount !== null) {
+        if (menu?.isCombo) {
+          // combo ตัดสต็อกที่ส่วนประกอบ — คืนตาม snapshot (qty ในเซต × จำนวนชุด)
+          const comps = await tx.orderItemComboComponent.findMany({
+            where: { orderItemId: item.id },
+          });
+          for (const c of comps) {
+            if (c.menuId === null) continue;
+            const comp = await tx.menu.findUnique({ where: { id: c.menuId } });
+            if (comp && comp.stockCount !== null) {
+              await tx.menu.update({
+                where: { id: comp.id },
+                data: { stockCount: { increment: c.quantity * item.quantity } },
+              });
+            }
+          }
+        } else if (menu && menu.stockCount !== null) {
           await tx.menu.update({
             where: { id: menu.id },
             data: { stockCount: { increment: item.quantity } },

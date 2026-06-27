@@ -179,20 +179,40 @@ model Menu {
   shopId       Int      @map("shop_id")
   categoryId   Int      @map("category_id")
   name         String
-  price        Int // สตางค์
-  stockCount   Int?     @map("stock_count") // null = ไม่นับสต็อก
+  price        Int // สตางค์ (combo: ราคาคงที่ของทั้งเซต)
+  stockCount   Int?     @map("stock_count") // null = ไม่นับสต็อก (combo: null เสมอ — อิงสต็อกส่วนประกอบ)
   isAvailable  Boolean  @default(true) @map("is_available") // สวิตช์ manual
   isArchived   Boolean  @default(false) @map("is_archived") // soft delete
+  isCombo      Boolean  @default(false) @map("is_combo") // true = ชุด/คอมโบ (ราคาคงที่ แตกเป็นส่วนประกอบให้ครัว)
   imageUrl     String?  @map("image_url") // path รูป เช่น /uploads/menus/xxx.jpg (null = ใช้ placeholder)
 
   shop           Shop            @relation(fields: [shopId], references: [id])
   category       Category        @relation(fields: [categoryId], references: [id])
   orderItems     OrderItem[]
   modifierGroups ModifierGroup[]
+  comboComponents  ComboComponent[] @relation("ComboParent") // ถ้าเมนูนี้เป็น combo: รายการในเซต
+  usedInCombos     ComboComponent[] @relation("ComboMember") // combo ที่ใช้เมนูนี้เป็นส่วนประกอบ
 
   @@index([shopId])
   @@index([categoryId])
   @@map("menus")
+}
+
+// นิยามส่วนประกอบของชุด/คอมโบ (static set) — combo หนึ่งมีหลายแถว
+// comboMenu = เมนูที่ isCombo=true; menu = เมนูจริงที่ต้องทำ/เสิร์ฟ (ห้ามเป็น combo เอง = ไม่ซ้อน)
+model ComboComponent {
+  id          Int @id @default(autoincrement())
+  comboMenuId Int @map("combo_menu_id")
+  menuId      Int @map("menu_id")
+  quantity    Int @default(1)
+  sortOrder   Int @default(0) @map("sort_order")
+
+  comboMenu Menu @relation("ComboParent", fields: [comboMenuId], references: [id])
+  menu      Menu @relation("ComboMember", fields: [menuId], references: [id])
+
+  @@index([comboMenuId])
+  @@index([menuId])
+  @@map("combo_components")
 }
 
 // กลุ่มตัวเลือกของเมนู เช่น "ระดับความเผ็ด", "ขนาด", "เพิ่มท็อปปิ้ง" — ผูกกับเมนูโดยตรง
@@ -359,12 +379,28 @@ model OrderItem {
   bill       Bill @relation(fields: [billId], references: [id])
   menu       Menu @relation(fields: [menuId], references: [id])
   modifiers  OrderItemModifier[]
+  comboItems OrderItemComboComponent[] // snapshot ส่วนประกอบ (เฉพาะรายการที่เป็น combo)
 
   // ผูกร้านผ่าน bill (ไม่เก็บ shop_id ซ้ำ)
   @@index([billId])
   @@index([batchId])
   @@index([status])
   @@map("order_items")
+}
+
+// snapshot ส่วนประกอบของ combo ตอนสั่ง — ไว้โชว์ครัว/ใบเสร็จว่าในชุดมีอะไร
+// ราคาไม่เก็บ (combo คิดราคาคงที่บน OrderItem.unitPrice แล้ว); mirror แนวคิด OrderItemModifier
+model OrderItemComboComponent {
+  id          Int    @id @default(autoincrement())
+  orderItemId Int    @map("order_item_id")
+  menuId      Int?   @map("menu_id") // อ้างต้นทาง (nullable เผื่อเมนูถูกลบภายหลัง)
+  name        String // snapshot ชื่อส่วนประกอบ
+  quantity    Int    @default(1)
+
+  orderItem OrderItem @relation(fields: [orderItemId], references: [id])
+
+  @@index([orderItemId])
+  @@map("order_item_combo_components")
 }
 
 // ตัวเลือกที่ลูกค้าเลือกตอนสั่ง — snapshot ชื่อ+ราคา (priceDelta ถูกบวกเข้า OrderItem.unitPrice แล้ว)

@@ -15,7 +15,7 @@ import { orderTypeLabel } from '../common/order-type';
 const CHECKOUT_INCLUDE = {
   orderItems: {
     orderBy: { createdAt: 'asc' },
-    include: { modifiers: true },
+    include: { modifiers: true, comboItems: true },
   },
   table: true,
   shop: true,
@@ -366,7 +366,7 @@ export class TablesService {
       include: {
         orderItems: {
           where: { status: { not: 'voided' } },
-          include: { modifiers: true },
+          include: { modifiers: true, comboItems: true },
         },
       },
     });
@@ -574,7 +574,7 @@ export class TablesService {
         table: true,
         orderItems: {
           orderBy: { createdAt: 'asc' },
-          include: { modifiers: true },
+          include: { modifiers: true, comboItems: true },
         },
         serviceRequests: { where: { status: 'pending' } },
       },

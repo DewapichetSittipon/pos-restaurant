@@ -3,6 +3,8 @@ import type { Category, TableInfo } from '../type/domain';
 import type {
   AuditLogEntry,
   CategoryRow,
+  ComboComponentInput,
+  CreateComboInput,
   CreateMenuInput,
   ModifierGroupInput,
   ShopInfo,
@@ -85,6 +87,20 @@ export async function uploadMenuImage(id: number, file: File): Promise<void> {
 
 export async function clearMenuImage(id: number): Promise<void> {
   await api.delete(`/menus/${id}/image`);
+}
+
+// ----- ชุด/คอมโบ -----
+// สร้างชุด (เมนู isCombo + ส่วนประกอบ); แก้ชื่อ/ราคา/รูป/งดขาย ใช้ updateMenu/archiveMenu เดิม
+export async function createCombo(input: CreateComboInput): Promise<void> {
+  await api.post('/menus/combos', input);
+}
+
+// แทนที่รายการส่วนประกอบของชุดทั้งชุด
+export async function setComboComponents(
+  menuId: number,
+  components: ComboComponentInput[],
+): Promise<void> {
+  await api.put(`/menus/${menuId}/combo-components`, { components });
 }
 
 // ตั้งค่าตัวเลือก (modifiers) ของเมนู — แทนที่ทั้งชุด

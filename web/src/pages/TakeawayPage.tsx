@@ -9,6 +9,7 @@ import type { CreateTakeawayInput } from '../services/staffApi';
 import { fetchShop, fetchCatalog } from '../services/manageApi';
 import { useToastStore } from '../store/toastStore';
 import { formatBaht } from '../utils/money';
+import { formatComboItems } from '../utils/menu';
 import { printReceipt } from '../utils/printReceipt';
 import { MenuCard } from '../components/MenuCard';
 import { ModifierPicker } from '../components/ModifierPicker';
@@ -25,6 +26,7 @@ interface LocalLine {
   quantity: number;
   selectedOptionIds: number[];
   modifiers: { name: string }[];
+  comboItems?: { name: string; quantity: number }[]; // ส่วนประกอบในชุด (เฉพาะ combo)
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -353,6 +355,12 @@ function AddItemsModal({
         quantity: 1,
         selectedOptionIds: options.map((o) => o.id),
         modifiers: options.map((o) => ({ name: o.name })),
+        comboItems: menu.isCombo
+          ? (menu.comboComponents ?? []).map((c) => ({
+              name: c.menu.name,
+              quantity: c.quantity,
+            }))
+          : undefined,
       },
     ]);
   }
@@ -423,6 +431,12 @@ function AddItemsModal({
                       <span className="text-xs text-slate-400">
                         {' '}
                         ({l.modifiers.map((m) => m.name).join(', ')})
+                      </span>
+                    )}
+                    {l.comboItems && l.comboItems.length > 0 && (
+                      <span className="text-xs text-violet-600">
+                        {' '}
+                        ({formatComboItems(l.comboItems)})
                       </span>
                     )}{' '}
                     ×{l.quantity}
