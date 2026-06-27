@@ -1,22 +1,79 @@
 # CLAUDE.md
 
-แนวทางการทำงานสำหรับ Claude Code ในโปรเจกต์นี้ (POS ร้านอาหาร).
+คู่มือสำหรับ Claude Code ทำงานในโปรเจกต์นี้ — POS ร้านอาหาร + QR self-ordering
+แบบ multi-tenant SaaS.
+
+> เอกสารอ้างอิงที่มีอยู่แล้ว (อ่านก่อนเมื่อเกี่ยวข้อง อย่าเขียนซ้ำ):
+> - `CONTEXT.md` — **ubiquitous language / domain model** (Bill, OrderItem, batch_id ฯลฯ)
+> - `README.md` — ภาพรวมฟีเจอร์แยกตาม role
+> - `docs/adr/` — บันทึกการตัดสินใจเชิงสถาปัตยกรรม
+> - `docs/` — backup/restore, data retention, onboarding ร้านใหม่, thermal printing
 
 ## Git workflow
 
 - **commit และ push เข้า branch `main` โดยตรงเสมอ** — ไม่ต้องแตก feature branch
-  ก่อน เมื่อได้รับคำสั่งจากผู้ใช้ผ่าน Claude (ผู้ใช้รับความเสี่ยงของการทำงานบน
-  main เอง).
+  ก่อน (ผู้ใช้รับความเสี่ยงของการทำงานบน main เอง).
 - commit/push เฉพาะตอนที่ผู้ใช้สั่งเท่านั้น.
 - ปิดท้าย commit message ด้วย:
   `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`
 
-## โครงสร้างโปรเจกต์
+## โครงสร้าง (monorepo)
 
-- `backend/` — NestJS + Prisma (PostgreSQL), multi-tenant ตาม `shopId`.
-- `web/` — React 19 + Vite + Tailwind + Zustand, ภาษาไทยเป็นหลัก.
+| โฟลเดอร์ | คืออะไร |
+|----------|---------|
+| `backend/` | NestJS 11 + Prisma 6 (PostgreSQL) + Socket.IO + JWT (HttpOnly cookie) |
+| `web/`     | React 19 + Vite + Tailwind + Zustand + react-router 7 (UI ภาษาไทย) |
+| `shared/`  | โค้ด/ไทป์ที่ใช้ร่วมกันระหว่าง backend กับ web |
+| `docs/`    | เอกสาร + ADR + runbook |
+| `scripts/` | `backup-db.sh` ฯลฯ |
+
+backend แยกเป็น NestJS module ตาม domain: `auth`, `orders`, `menus`, `tables`,
+`categories`, `members`, `reports`, `reservations`, `shifts`, `service-requests`,
+`shop`, `staff`, `signup`, `admin` (platform), `audit`, `events` (socket),
+`notifications`, `uploads`, `health`.
+
+## คำสั่งที่ใช้บ่อย
+
+**Backend** (`cd backend`)
+```bash
+npm run start:dev        # dev server + watch
+npm run prisma:migrate   # สร้าง/รัน migration (dev)
+npm run prisma:seed      # seed ข้อมูล (มีร้านตัวอย่าง shopa/shopb)
+npm run prisma:studio    # เปิด Prisma Studio
+npm test                 # vitest
+```
+
+**Web** (`cd web`)
+```bash
+npm run dev        # vite dev server
+npm run build      # tsc -b && vite build — ใช้ตัวนี้เช็คก่อนถือว่าเสร็จ
+npm test           # vitest
+```
+
+ทั้งโปรเจกต์รันพร้อมกันได้ด้วย `docker-compose.yml` (มี Postgres ให้).
+
+## Conventions ที่ต้องรู้ (พลาดง่าย)
+
+- **เงินเก็บเป็น "สตางค์" (integer)** เสมอ ทั้ง DB และ API — ไม่ใช่ทศนิยมบาท.
+  เช่น 25.50 บาท = `2550`. แปลงเป็นบาทตอนแสดงผลเท่านั้น.
+- **Multi-tenant ด้วย `shopId`** — ทุก query ฝั่ง backend ต้อง scope ตาม shop
+  ของผู้ใช้ อย่า query ข้ามร้าน.
+- **Snapshot ตอนสั่ง** — `OrderItem` เก็บ `item_name` + `unit_price` (และ
+  modifiers/combo) ณ ตอนสั่ง เพื่อให้บิลย้อนหลังถูกแม้เมนูเปลี่ยนทีหลัง.
+- **Soft delete** — เมนูใช้ `is_archived` ไม่ hard-delete (รักษา FK ของบิลเก่า).
+- **`is_available` ≠ stock** — สวิตช์ปิดขาย manual แยกจาก `stock_count`
+  (ดูนิยามใน `CONTEXT.md`).
+- **`batch_id`** — UUID ที่ OrderItem กลุ่มที่กดส่งพร้อมกันแชร์กัน ใช้จัด
+  "ticket" ให้ครัว และ "รอบที่ 1/2.." ให้ลูกค้า (ไม่ใช่ตารางแยก).
+- **สถานะอาหาร**: `queued → cooking → served` (+ `voided`). ใช้ "queued"
+  ไม่ใช่ "pending" (กันชนกับ Bill.pending).
+- **Real-time** — เปลี่ยนสถานะ/สั่งใหม่ ยิงผ่าน Socket.IO; ชื่อ event อยู่ที่
+  `web/src/services/socket.ts` (`SOCKET_EVENTS`).
 
 ## ตรวจงานก่อนถือว่าเสร็จ
 
-- ฝั่ง web: `cd web && npm run build` (รวม `tsc -b` + vite build) ต้องผ่าน.
-- โปรเจกต์ไม่ได้ตั้ง ESLint — ใช้ TypeScript compiler เป็นตัวตรวจหลัก.
+- ฝั่ง web: `cd web && npm run build` ต้องผ่าน (รวม typecheck).
+- ฝั่ง backend: `cd backend && npm test` เมื่อแตะ logic.
+- โปรเจกต์ **ไม่ได้ตั้ง ESLint** — ใช้ TypeScript compiler เป็นตัวตรวจหลัก.
+- migration ใหม่ต้องรัน/ตรวจก่อน merge; ดูสถานะที่ยังไม่ได้ apply ใน
+  `backend/prisma/migrations/`.
