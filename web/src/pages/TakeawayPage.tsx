@@ -396,10 +396,10 @@ function AddItemsModal({
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex flex-col">
+    <div className="fixed inset-0 z-40 flex flex-col justify-center p-4">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative mx-auto mt-auto flex max-h-[92vh] w-full max-w-md flex-col rounded-t-2xl bg-warm">
-        <div className="flex items-center justify-between p-4">
+      <div className="relative mx-auto flex max-h-[88vh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-warm shadow-xl">
+        <div className="flex items-center justify-between px-4 pt-4 pb-2">
           <h3 className="font-bold">เพิ่มรายการ · {bill.customerName || `#${bill.id}`}</h3>
           <button type="button" onClick={onClose} className="text-sm text-slate-400">
             ปิด
@@ -407,17 +407,21 @@ function AddItemsModal({
         </div>
 
         {categories.length > 0 && (
-          <CategoryTabs
-            categories={categories}
-            activeId={activeId}
-            onSelect={setActiveCat}
-          />
+          <div className="px-4">
+            <CategoryTabs
+              categories={categories}
+              activeId={activeId}
+              onSelect={setActiveCat}
+            />
+          </div>
         )}
 
-        <div className="flex-1 space-y-2 overflow-y-auto p-4">
-          {menus.map((m) => (
-            <MenuCard key={m.id} menu={m} onAdd={handleAdd} />
-          ))}
+        <div className="flex-1 space-y-2 overflow-y-auto px-4 pb-4 pt-3">
+          {menus.length === 0 ? (
+            <p className="py-8 text-center text-sm text-slate-400">— ไม่มีเมนูในหมวดนี้ —</p>
+          ) : (
+            menus.map((m) => <MenuCard key={m.id} menu={m} onAdd={handleAdd} />)
+          )}
         </div>
 
         {lines.length > 0 && (
