@@ -4,6 +4,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { translatedNames, type TranslatedNameInput } from '../common/i18n';
+
+interface CategoryInput extends TranslatedNameInput {
+  name: string;
+}
 
 @Injectable()
 export class CategoriesService {
@@ -21,21 +26,23 @@ export class CategoriesService {
     return categories.map((c) => ({
       id: c.id,
       name: c.name,
+      nameEn: c.nameEn,
+      nameZh: c.nameZh,
       menuCount: c._count.menus,
     }));
   }
 
-  create(shopId: number, name: string) {
+  create(shopId: number, dto: CategoryInput) {
     return this.prisma.category.create({
-      data: { shopId, name: name.trim() },
+      data: { shopId, name: dto.name.trim(), ...translatedNames(dto) },
     });
   }
 
-  async rename(shopId: number, id: number, name: string) {
+  async rename(shopId: number, id: number, dto: CategoryInput) {
     await this.assertOwned(shopId, id);
     return this.prisma.category.update({
       where: { id },
-      data: { name: name.trim() },
+      data: { name: dto.name.trim(), ...translatedNames(dto) },
     });
   }
 

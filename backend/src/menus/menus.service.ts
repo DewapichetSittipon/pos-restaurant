@@ -18,6 +18,7 @@ import {
   MIME_EXT,
   type UploadedImageFile,
 } from '../uploads/uploads.constants';
+import { translatedNames, translatedNamesPartial } from '../common/i18n';
 
 @Injectable()
 export class MenusService {
@@ -43,7 +44,7 @@ export class MenusService {
             },
             comboComponents: {
               orderBy: { sortOrder: 'asc' },
-              include: { menu: { select: { id: true, name: true } } },
+              include: { menu: { select: { id: true, name: true, nameEn: true, nameZh: true } } },
             },
           },
         },
@@ -73,12 +74,14 @@ export class MenusService {
           data: {
             menuId,
             name: g.name.trim(),
+            ...translatedNames(g),
             minSelect: g.minSelect,
             maxSelect: g.maxSelect,
             sortOrder: gi,
             options: {
               create: g.options.map((o, oi) => ({
                 name: o.name.trim(),
+                ...translatedNames(o),
                 priceDelta: o.priceDelta,
                 isAvailable: o.isAvailable ?? true,
                 sortOrder: oi,
@@ -104,6 +107,7 @@ export class MenusService {
         shopId,
         categoryId: dto.categoryId,
         name: dto.name.trim(),
+        ...translatedNames(dto),
         price: dto.price, // สตางค์ — ราคาคงที่ของทั้งเซต
         stockCount: null, // combo อิงสต็อกส่วนประกอบ
         isCombo: true,
@@ -185,6 +189,7 @@ export class MenusService {
         shopId,
         categoryId: dto.categoryId,
         name: dto.name.trim(),
+        ...translatedNames(dto),
         price: dto.price, // สตางค์
         stockCount: dto.stockCount ?? null,
       },
@@ -205,6 +210,7 @@ export class MenusService {
       data: {
         categoryId: dto.categoryId,
         name: dto.name?.trim(),
+        ...translatedNamesPartial(dto),
         price: dto.price,
         stockCount: dto.stockCount, // null = เลิกนับสต็อก
         isAvailable: dto.isAvailable,

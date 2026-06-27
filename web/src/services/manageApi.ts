@@ -8,6 +8,7 @@ import type {
   CreateMenuInput,
   ModifierGroupInput,
   ShopInfo,
+  TranslatedNameInput,
   UpdateMenuInput,
   UpdateShopInput,
 } from '../type/manage';
@@ -46,12 +47,19 @@ export async function fetchCategories(): Promise<CategoryRow[]> {
   return data;
 }
 
-export async function createCategory(name: string): Promise<void> {
-  await api.post('/categories', { name });
+export async function createCategory(
+  name: string,
+  translations?: TranslatedNameInput,
+): Promise<void> {
+  await api.post('/categories', { name, ...translations });
 }
 
-export async function renameCategory(id: number, name: string): Promise<void> {
-  await api.patch(`/categories/${id}`, { name });
+export async function renameCategory(
+  id: number,
+  name: string,
+  translations?: TranslatedNameInput,
+): Promise<void> {
+  await api.patch(`/categories/${id}`, { name, ...translations });
 }
 
 export async function deleteCategory(id: number): Promise<void> {

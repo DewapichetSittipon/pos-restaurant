@@ -21,6 +21,16 @@ export class CreateMenuDto {
   @MaxLength(80)
   name!: string;
 
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  nameEn?: string; // ชื่อแปลอังกฤษ (ว่าง = ใช้ name ไทย)
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  nameZh?: string; // ชื่อแปลจีน (ว่าง = ใช้ name ไทย)
+
   @IsInt()
   @Min(0)
   price!: number; // สตางค์
@@ -42,6 +52,16 @@ export class UpdateMenuDto {
   @MinLength(1)
   @MaxLength(80)
   name?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  nameEn?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  nameZh?: string;
 
   @IsOptional()
   @IsInt()
@@ -66,6 +86,16 @@ export class ModifierOptionInput {
   @MaxLength(60)
   name!: string;
 
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  nameEn?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  nameZh?: string;
+
   @IsInt()
   @Min(0)
   priceDelta!: number; // สตางค์ (0 = ไม่บวกเพิ่ม)
@@ -80,6 +110,16 @@ export class ModifierGroupInput {
   @MinLength(1)
   @MaxLength(60)
   name!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  nameEn?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  nameZh?: string;
 
   @IsInt()
   @Min(0)
@@ -123,6 +163,16 @@ export class CreateComboDto {
   @MinLength(1)
   @MaxLength(80)
   name!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  nameEn?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  nameZh?: string;
 
   @IsInt()
   @Min(0)

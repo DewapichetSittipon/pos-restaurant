@@ -1,6 +1,7 @@
 import { useCartStore, selectTotalPrice } from '../store/cartStore';
 import { formatBaht } from '../utils/money';
 import { formatComboItems } from '../utils/menu';
+import { localizedName, useLang, useT } from '../i18n';
 import { MenuThumb } from './MenuThumb';
 
 interface CartDrawerProps {
@@ -16,6 +17,8 @@ export function CartDrawer({ open, submitting, onClose, onSubmit }: CartDrawerPr
   const decrement = useCartStore((s) => s.decrement);
   const setNote = useCartStore((s) => s.setNote);
   const total = useCartStore(selectTotalPrice);
+  const lang = useLang();
+  const t = useT();
 
   if (!open) return null;
 
@@ -25,14 +28,14 @@ export function CartDrawer({ open, submitting, onClose, onSubmit }: CartDrawerPr
       <div className="relative mx-auto max-h-[80vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-warm p-5">
         <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-slate-300" />
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold">🛒 ตะกร้าของคุณ</h2>
+          <h2 className="text-lg font-bold">🛒 {t('cartTitle')}</h2>
           <button type="button" onClick={onClose} className="text-sm font-medium text-slate-400">
-            ปิด
+            {t('close')}
           </button>
         </div>
 
         {lines.length === 0 ? (
-          <p className="py-8 text-center text-slate-400">ตะกร้าว่าง</p>
+          <p className="py-8 text-center text-slate-400">{t('cartEmpty')}</p>
         ) : (
           <ul className="space-y-3">
             {lines.map((line) => (
@@ -43,11 +46,11 @@ export function CartDrawer({ open, submitting, onClose, onSubmit }: CartDrawerPr
                 <div className="flex items-center justify-between gap-3">
                   <MenuThumb
                     imageUrl={line.imageUrl}
-                    alt={line.name}
+                    alt={localizedName(line, lang)}
                     className="h-12 w-12"
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium">{line.name}</p>
+                    <p className="truncate font-medium">{localizedName(line, lang)}</p>
                     {line.modifiers.length > 0 && (
                       <p className="truncate text-xs text-slate-500">
                         {line.modifiers.map((m) => m.name).join(', ')}
@@ -83,7 +86,7 @@ export function CartDrawer({ open, submitting, onClose, onSubmit }: CartDrawerPr
                   value={line.note ?? ''}
                   onChange={(e) => setNote(line.lineId, e.target.value)}
                   maxLength={200}
-                  placeholder="หมายเหตุ เช่น ไม่เผ็ด / พิเศษ (ถ้ามี)"
+                  placeholder={t('notePlaceholder')}
                   className="mt-2 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
                 />
               </li>
@@ -97,7 +100,9 @@ export function CartDrawer({ open, submitting, onClose, onSubmit }: CartDrawerPr
           onClick={onSubmit}
           className="mt-5 w-full rounded-xl bg-linear-to-r from-orange-500 to-rose-500 py-4 font-bold text-white shadow-lg shadow-orange-500/30 active:scale-[0.99] disabled:opacity-50 disabled:shadow-none"
         >
-          {submitting ? 'กำลังส่ง...' : `ยืนยันสั่ง · ${formatBaht(total)}`}
+          {submitting
+            ? t('submitting')
+            : t('confirmOrder', { total: formatBaht(total) })}
         </button>
       </div>
     </div>

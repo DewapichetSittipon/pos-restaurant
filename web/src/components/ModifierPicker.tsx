@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { MenuItem, ModifierOption } from '../type/domain';
 import { formatBaht } from '../utils/money';
+import { localizedName, useLang, useT } from '../i18n';
 import { MenuThumb } from './MenuThumb';
 
 interface ModifierPickerProps {
@@ -12,6 +13,8 @@ interface ModifierPickerProps {
 // โมดอลเลือกตัวเลือกของเมนู (ขนาด/ระดับ/ท็อปปิ้ง) ก่อนใส่ตะกร้า
 // maxSelect === 1 = เลือกได้ตัวเดียว (radio), > 1 = หลายตัว (checkbox จำกัดจำนวน)
 export function ModifierPicker({ menu, onClose, onConfirm }: ModifierPickerProps) {
+  const lang = useLang();
+  const t = useT();
   // selected: groupId -> set ของ optionId
   const [selected, setSelected] = useState<Record<number, number[]>>({});
 
@@ -53,15 +56,15 @@ export function ModifierPicker({ menu, onClose, onConfirm }: ModifierPickerProps
       <div className="relative mx-auto max-h-[85vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-warm p-5">
         <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-slate-300" />
         <div className="mb-4 flex items-center gap-3">
-          <MenuThumb imageUrl={menu.imageUrl} alt={menu.name} className="h-12 w-12" />
+          <MenuThumb imageUrl={menu.imageUrl} alt={localizedName(menu, lang)} className="h-12 w-12" />
           <div className="min-w-0 flex-1">
-            <p className="truncate font-bold">{menu.name}</p>
+            <p className="truncate font-bold">{localizedName(menu, lang)}</p>
             <p className="text-sm font-semibold text-orange-600">
               {formatBaht(menu.price)}
             </p>
           </div>
           <button type="button" onClick={onClose} className="text-sm font-medium text-slate-400">
-            ปิด
+            {t('close')}
           </button>
         </div>
 
@@ -71,10 +74,10 @@ export function ModifierPicker({ menu, onClose, onConfirm }: ModifierPickerProps
             return (
               <div key={g.id}>
                 <div className="mb-1.5 flex items-center justify-between">
-                  <p className="font-semibold text-slate-700">{g.name}</p>
+                  <p className="font-semibold text-slate-700">{localizedName(g, lang)}</p>
                   <span className="text-xs text-slate-400">
-                    {g.minSelect > 0 ? 'ต้องเลือก' : 'ไม่บังคับ'}
-                    {g.maxSelect > 1 ? ` · ได้สูงสุด ${g.maxSelect}` : ''}
+                    {g.minSelect > 0 ? t('required') : t('optional')}
+                    {g.maxSelect > 1 ? ` · ${t('maxN', { n: g.maxSelect })}` : ''}
                   </span>
                 </div>
                 <div className="space-y-1.5">
@@ -101,8 +104,8 @@ export function ModifierPicker({ menu, onClose, onConfirm }: ModifierPickerProps
                           >
                             {checked ? '✓' : ''}
                           </span>
-                          {o.name}
-                          {disabled && ' (หมด)'}
+                          {localizedName(o, lang)}
+                          {disabled && ` ${t('soldOutParen')}`}
                         </span>
                         {o.priceDelta > 0 && (
                           <span className="text-slate-500">+{formatBaht(o.priceDelta)}</span>
@@ -123,8 +126,8 @@ export function ModifierPicker({ menu, onClose, onConfirm }: ModifierPickerProps
           className="mt-5 w-full rounded-xl bg-linear-to-r from-orange-500 to-rose-500 py-4 font-bold text-white shadow-lg shadow-orange-500/30 active:scale-[0.99] disabled:opacity-50 disabled:shadow-none"
         >
           {canConfirm
-            ? `เพิ่มลงตะกร้า · ${formatBaht(menu.price + extra)}`
-            : `เลือก ${unmet[0].name} ก่อน`}
+            ? t('addToCart', { total: formatBaht(menu.price + extra) })
+            : t('chooseFirst', { name: localizedName(unmet[0], lang) })}
         </button>
       </div>
     </div>

@@ -33,7 +33,7 @@ export class CategoriesController {
   @Post()
   @Roles('OWNER')
   create(@CurrentShop() shopId: number, @Body() dto: CreateCategoryDto) {
-    return this.categories.create(shopId, dto.name);
+    return this.categories.create(shopId, dto);
   }
 
   @Patch(':id')
@@ -43,7 +43,7 @@ export class CategoriesController {
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateCategoryDto,
   ) {
-    return this.categories.rename(shopId, id, dto.name);
+    return this.categories.rename(shopId, id, dto);
   }
 
   @Delete(':id')

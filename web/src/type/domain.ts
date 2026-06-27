@@ -6,14 +6,20 @@ export type TableStatus = 'vacant' | 'occupied';
 export type ServiceRequestType = 'call_staff' | 'call_bill';
 export type ServiceRequestStatus = 'pending' | 'acknowledged';
 
-export interface ModifierOption {
+// ชื่อแปลหลายภาษา (null = ใช้ name ไทย) — ฝั่งลูกค้าเลือกตามภาษาที่ตั้งไว้
+export interface TranslatedName {
+  nameEn?: string | null;
+  nameZh?: string | null;
+}
+
+export interface ModifierOption extends TranslatedName {
   id: number;
   name: string;
   priceDelta: number; // สตางค์ (0 = ไม่บวกเพิ่ม)
   isAvailable: boolean;
 }
 
-export interface ModifierGroup {
+export interface ModifierGroup extends TranslatedName {
   id: number;
   name: string;
   minSelect: number; // 0 = ไม่บังคับ
@@ -26,10 +32,10 @@ export interface ComboComponentDef {
   id: number;
   menuId: number;
   quantity: number;
-  menu: { id: number; name: string };
+  menu: { id: number; name: string } & TranslatedName;
 }
 
-export interface MenuItem {
+export interface MenuItem extends TranslatedName {
   id: number;
   categoryId: number;
   name: string;
@@ -56,7 +62,7 @@ export interface OrderItemModifier {
   priceDelta: number; // สตางค์
 }
 
-export interface Category {
+export interface Category extends TranslatedName {
   id: number;
   name: string;
   menus: MenuItem[];
@@ -132,7 +138,7 @@ export interface Session extends Bill {
 
 // ตะกร้าฝั่ง client (local ต่อเครื่อง — ดู decision multi-device)
 // แต่ละบรรทัดมี lineId เฉพาะ เพราะเมนูเดียวกันที่เลือกตัวเลือกต่างกันต้องแยกบรรทัด
-export interface CartLine {
+export interface CartLine extends TranslatedName {
   lineId: string;
   menuId: number;
   name: string;

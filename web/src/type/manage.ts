@@ -36,20 +36,26 @@ export interface AuditLogEntry {
 }
 
 // หมวดหมู่ + จำนวนเมนู (จาก GET /categories)
-export interface CategoryRow {
+// ชื่อแปลอังกฤษ/จีน (ว่าง = ใช้ name ไทย) — ฝั่งลูกค้าเลือกตามภาษา
+export interface TranslatedNameInput {
+  nameEn?: string | null;
+  nameZh?: string | null;
+}
+
+export interface CategoryRow extends TranslatedNameInput {
   id: number;
   name: string;
   menuCount: number;
 }
 
-export interface CreateMenuInput {
+export interface CreateMenuInput extends TranslatedNameInput {
   categoryId: number;
   name: string;
   price: number; // สตางค์
   stockCount: number | null;
 }
 
-export interface UpdateMenuInput {
+export interface UpdateMenuInput extends TranslatedNameInput {
   categoryId?: number;
   name?: string;
   price?: number; // สตางค์
@@ -58,13 +64,13 @@ export interface UpdateMenuInput {
 }
 
 // payload ตั้งค่าตัวเลือกของเมนู (แทนที่ทั้งชุด) — ส่งให้ PUT /menus/:id/modifiers
-export interface ModifierOptionInput {
+export interface ModifierOptionInput extends TranslatedNameInput {
   name: string;
   priceDelta: number; // สตางค์
   isAvailable?: boolean;
 }
 
-export interface ModifierGroupInput {
+export interface ModifierGroupInput extends TranslatedNameInput {
   name: string;
   minSelect: number;
   maxSelect: number;
@@ -77,7 +83,7 @@ export interface ComboComponentInput {
   quantity: number;
 }
 
-export interface CreateComboInput {
+export interface CreateComboInput extends TranslatedNameInput {
   categoryId: number;
   name: string;
   price: number; // สตางค์ — ราคาคงที่ทั้งเซต

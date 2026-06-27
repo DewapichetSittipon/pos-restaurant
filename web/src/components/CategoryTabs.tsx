@@ -1,4 +1,5 @@
 import type { Category } from '../type/domain';
+import { localizedName, useLang } from '../i18n';
 
 interface CategoryTabsProps {
   categories: Category[];
@@ -7,6 +8,7 @@ interface CategoryTabsProps {
 }
 
 export function CategoryTabs({ categories, activeId, onSelect }: CategoryTabsProps) {
+  const lang = useLang();
   return (
     <div className="sticky top-0 z-10 -mx-4 flex gap-2 overflow-x-auto bg-warm/95 px-4 py-3 backdrop-blur">
       {categories.map((cat) => (
@@ -20,7 +22,7 @@ export function CategoryTabs({ categories, activeId, onSelect }: CategoryTabsPro
               : 'bg-white text-slate-600 ring-1 ring-slate-200/70'
           }`}
         >
-          {cat.name}
+          {localizedName(cat, lang)}
         </button>
       ))}
     </div>

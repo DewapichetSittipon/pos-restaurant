@@ -163,9 +163,11 @@ model Table {
 }
 
 model Category {
-  id      Int    @id @default(autoincrement())
-  shopId  Int    @map("shop_id")
+  id      Int     @id @default(autoincrement())
+  shopId  Int     @map("shop_id")
   name    String
+  nameEn  String? @map("name_en") // ชื่อแปลอังกฤษ (null = ใช้ name ไทย)
+  nameZh  String? @map("name_zh") // ชื่อแปลจีน (null = ใช้ name ไทย)
 
   shop  Shop   @relation(fields: [shopId], references: [id])
   menus Menu[]
@@ -179,6 +181,8 @@ model Menu {
   shopId       Int      @map("shop_id")
   categoryId   Int      @map("category_id")
   name         String
+  nameEn       String?  @map("name_en") // ชื่อแปลอังกฤษ (null = ใช้ name ไทย)
+  nameZh       String?  @map("name_zh") // ชื่อแปลจีน (null = ใช้ name ไทย)
   price        Int // สตางค์ (combo: ราคาคงที่ของทั้งเซต)
   stockCount   Int?     @map("stock_count") // null = ไม่นับสต็อก (combo: null เสมอ — อิงสต็อกส่วนประกอบ)
   isAvailable  Boolean  @default(true) @map("is_available") // สวิตช์ manual
@@ -217,9 +221,11 @@ model ComboComponent {
 
 // กลุ่มตัวเลือกของเมนู เช่น "ระดับความเผ็ด", "ขนาด", "เพิ่มท็อปปิ้ง" — ผูกกับเมนูโดยตรง
 model ModifierGroup {
-  id        Int    @id @default(autoincrement())
-  menuId    Int    @map("menu_id")
+  id        Int     @id @default(autoincrement())
+  menuId    Int     @map("menu_id")
   name      String
+  nameEn    String? @map("name_en") // ชื่อแปลอังกฤษ (null = ใช้ name ไทย)
+  nameZh    String? @map("name_zh") // ชื่อแปลจีน (null = ใช้ name ไทย)
   // กฎการเลือก: minSelect 0 = ไม่บังคับ, >=1 = บังคับเลือก; maxSelect 1 = เลือกได้ตัวเดียว, >1 = หลายตัว
   minSelect Int    @default(0) @map("min_select")
   maxSelect Int    @default(1) @map("max_select")
@@ -237,6 +243,8 @@ model ModifierOption {
   id          Int     @id @default(autoincrement())
   groupId     Int     @map("group_id")
   name        String
+  nameEn      String? @map("name_en") // ชื่อแปลอังกฤษ (null = ใช้ name ไทย)
+  nameZh      String? @map("name_zh") // ชื่อแปลจีน (null = ใช้ name ไทย)
   priceDelta  Int     @default(0) @map("price_delta") // สตางค์ (0 = ไม่บวกเพิ่ม)
   isAvailable Boolean @default(true) @map("is_available")
   sortOrder   Int     @default(0) @map("sort_order")

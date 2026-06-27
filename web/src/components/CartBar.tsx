@@ -1,4 +1,5 @@
 import { formatBaht } from '../utils/money';
+import { useT } from '../i18n';
 
 interface CartBarProps {
   quantity: number;
@@ -7,6 +8,7 @@ interface CartBarProps {
 }
 
 export function CartBar({ quantity, total, onOpen }: CartBarProps) {
+  const t = useT();
   if (quantity === 0) return null;
   return (
     <button
@@ -18,7 +20,7 @@ export function CartBar({ quantity, total, onOpen }: CartBarProps) {
         <span className="grid h-7 w-7 place-items-center rounded-full bg-white/25 text-sm font-bold">
           {quantity}
         </span>
-        ดูตะกร้า
+        {t('viewCart')}
       </span>
       <span className="flex items-center gap-1.5 font-bold">
         {formatBaht(total)}

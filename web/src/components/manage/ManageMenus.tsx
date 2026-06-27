@@ -27,13 +27,26 @@ function parseStock(raw: string): number | null {
   return Number.isFinite(n) && n >= 0 ? Math.floor(n) : null;
 }
 
-const EMPTY_NEW = { categoryId: 0, name: '', priceBaht: '', stock: '' };
+const EMPTY_NEW = {
+  categoryId: 0,
+  name: '',
+  nameEn: '',
+  nameZh: '',
+  priceBaht: '',
+  stock: '',
+};
 
 export function ManageMenus() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [form, setForm] = useState(EMPTY_NEW);
   const [editId, setEditId] = useState<number | null>(null);
-  const [edit, setEdit] = useState({ name: '', priceBaht: '', stock: '' });
+  const [edit, setEdit] = useState({
+    name: '',
+    nameEn: '',
+    nameZh: '',
+    priceBaht: '',
+    stock: '',
+  });
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [modMenu, setModMenu] = useState<MenuItem | null>(null);
@@ -65,6 +78,8 @@ export function ManageMenus() {
       await createMenu({
         categoryId: form.categoryId,
         name: form.name.trim(),
+        nameEn: form.nameEn,
+        nameZh: form.nameZh,
         price: Math.round(priceBaht * 100),
         stockCount: parseStock(form.stock),
       });
@@ -81,6 +96,8 @@ export function ManageMenus() {
     setEditId(m.id);
     setEdit({
       name: m.name,
+      nameEn: m.nameEn ?? '',
+      nameZh: m.nameZh ?? '',
       priceBaht: String(m.price / 100),
       stock: m.stockCount == null ? '' : String(m.stockCount),
     });
@@ -92,6 +109,8 @@ export function ManageMenus() {
     try {
       await updateMenu(editId, {
         name: edit.name.trim(),
+        nameEn: edit.nameEn,
+        nameZh: edit.nameZh,
         price: Math.round(Number(edit.priceBaht) * 100),
         stockCount: parseStock(edit.stock),
       });
@@ -163,8 +182,20 @@ export function ManageMenus() {
         <input
           value={form.name}
           onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-          placeholder="ชื่อเมนู"
+          placeholder="ชื่อเมนู (ไทย)"
           className="rounded-lg border border-slate-300 px-3 py-2.5 sm:col-span-4"
+        />
+        <input
+          value={form.nameEn}
+          onChange={(e) => setForm((f) => ({ ...f, nameEn: e.target.value }))}
+          placeholder="ชื่อ EN (ถ้ามี)"
+          className="rounded-lg border border-slate-200 px-3 py-2.5 text-sm sm:col-span-3"
+        />
+        <input
+          value={form.nameZh}
+          onChange={(e) => setForm((f) => ({ ...f, nameZh: e.target.value }))}
+          placeholder="ชื่อ 中文 (ถ้ามี)"
+          className="rounded-lg border border-slate-200 px-3 py-2.5 text-sm sm:col-span-3"
         />
         <input
           value={form.priceBaht}
@@ -212,7 +243,20 @@ export function ManageMenus() {
                         <input
                           value={edit.name}
                           onChange={(e) => setEdit((s) => ({ ...s, name: e.target.value }))}
+                          placeholder="ชื่อ (ไทย)"
                           className="min-w-0 flex-1 rounded border border-slate-300 px-2 py-1.5"
+                        />
+                        <input
+                          value={edit.nameEn}
+                          onChange={(e) => setEdit((s) => ({ ...s, nameEn: e.target.value }))}
+                          placeholder="EN"
+                          className="w-28 rounded border border-slate-200 px-2 py-1.5 text-sm"
+                        />
+                        <input
+                          value={edit.nameZh}
+                          onChange={(e) => setEdit((s) => ({ ...s, nameZh: e.target.value }))}
+                          placeholder="中文"
+                          className="w-28 rounded border border-slate-200 px-2 py-1.5 text-sm"
                         />
                         <input
                           value={edit.priceBaht}

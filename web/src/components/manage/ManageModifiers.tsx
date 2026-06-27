@@ -6,11 +6,15 @@ import { setMenuModifiers } from '../../services/manageApi';
 // editor state ใช้ราคาเป็น "บาท" (string) เพื่อกรอกง่าย แล้วแปลงเป็นสตางค์ตอนบันทึก
 interface OptDraft {
   name: string;
+  nameEn: string;
+  nameZh: string;
   priceBaht: string;
   isAvailable: boolean;
 }
 interface GroupDraft {
   name: string;
+  nameEn: string;
+  nameZh: string;
   minSelect: number;
   maxSelect: number;
   options: OptDraft[];
@@ -19,10 +23,14 @@ interface GroupDraft {
 function toDrafts(menu: MenuItem): GroupDraft[] {
   return (menu.modifierGroups ?? []).map((g) => ({
     name: g.name,
+    nameEn: g.nameEn ?? '',
+    nameZh: g.nameZh ?? '',
     minSelect: g.minSelect,
     maxSelect: g.maxSelect,
     options: g.options.map((o) => ({
       name: o.name,
+      nameEn: o.nameEn ?? '',
+      nameZh: o.nameZh ?? '',
       priceBaht: (o.priceDelta / 100).toString(),
       isAvailable: o.isAvailable,
     })),
@@ -80,6 +88,8 @@ export function ManageModifiers({ menu, onClose, onSaved }: Props) {
         }
         options.push({
           name: o.name.trim(),
+          nameEn: o.nameEn,
+          nameZh: o.nameZh,
           priceDelta: Math.round(baht * 100),
           isAvailable: o.isAvailable,
         });
@@ -94,6 +104,8 @@ export function ManageModifiers({ menu, onClose, onSaved }: Props) {
       }
       payload.push({
         name: g.name.trim(),
+        nameEn: g.nameEn,
+        nameZh: g.nameZh,
         minSelect: g.minSelect,
         maxSelect: g.maxSelect,
         options,
@@ -134,7 +146,7 @@ export function ManageModifiers({ menu, onClose, onSaved }: Props) {
                 <input
                   value={g.name}
                   onChange={(e) => patchGroup(gi, { name: e.target.value })}
-                  placeholder="ชื่อกลุ่ม เช่น ขนาด / ระดับความเผ็ด"
+                  placeholder="ชื่อกลุ่ม (ไทย) เช่น ขนาด / ระดับความเผ็ด"
                   className="flex-1 rounded-lg border border-slate-200 px-2 py-1.5 text-sm font-semibold"
                 />
                 <button
@@ -144,6 +156,21 @@ export function ManageModifiers({ menu, onClose, onSaved }: Props) {
                 >
                   ลบกลุ่ม
                 </button>
+              </div>
+
+              <div className="mt-1.5 flex gap-2">
+                <input
+                  value={g.nameEn}
+                  onChange={(e) => patchGroup(gi, { nameEn: e.target.value })}
+                  placeholder="ชื่อกลุ่ม EN (ถ้ามี)"
+                  className="flex-1 rounded-lg border border-slate-200 px-2 py-1 text-xs"
+                />
+                <input
+                  value={g.nameZh}
+                  onChange={(e) => patchGroup(gi, { nameZh: e.target.value })}
+                  placeholder="ชื่อกลุ่ม 中文 (ถ้ามี)"
+                  className="flex-1 rounded-lg border border-slate-200 px-2 py-1 text-xs"
+                />
               </div>
 
               <div className="mt-2 flex items-center gap-3 text-xs text-slate-500">
@@ -175,37 +202,53 @@ export function ManageModifiers({ menu, onClose, onSaved }: Props) {
 
               <div className="mt-2 space-y-1.5">
                 {g.options.map((o, oi) => (
-                  <div key={oi} className="flex items-center gap-2">
-                    <input
-                      value={o.name}
-                      onChange={(e) => patchOpt(gi, oi, { name: e.target.value })}
-                      placeholder="ชื่อตัวเลือก"
-                      className="flex-1 rounded-lg border border-slate-200 px-2 py-1 text-sm"
-                    />
-                    <div className="flex items-center gap-1">
-                      <span className="text-xs text-slate-400">+฿</span>
+                  <div key={oi} className="rounded-lg bg-slate-50 p-1.5">
+                    <div className="flex items-center gap-2">
                       <input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        value={o.priceBaht}
-                        onChange={(e) =>
-                          patchOpt(gi, oi, { priceBaht: e.target.value })
+                        value={o.name}
+                        onChange={(e) => patchOpt(gi, oi, { name: e.target.value })}
+                        placeholder="ชื่อตัวเลือก (ไทย)"
+                        className="flex-1 rounded-lg border border-slate-200 px-2 py-1 text-sm"
+                      />
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs text-slate-400">+฿</span>
+                        <input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          value={o.priceBaht}
+                          onChange={(e) =>
+                            patchOpt(gi, oi, { priceBaht: e.target.value })
+                          }
+                          className="w-16 rounded-lg border border-slate-200 px-2 py-1 text-sm"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          patchGroup(gi, {
+                            options: g.options.filter((_, j) => j !== oi),
+                          })
                         }
-                        className="w-16 rounded-lg border border-slate-200 px-2 py-1 text-sm"
+                        className="text-slate-400"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <div className="mt-1 flex gap-2">
+                      <input
+                        value={o.nameEn}
+                        onChange={(e) => patchOpt(gi, oi, { nameEn: e.target.value })}
+                        placeholder="EN (ถ้ามี)"
+                        className="flex-1 rounded border border-slate-200 px-2 py-0.5 text-xs"
+                      />
+                      <input
+                        value={o.nameZh}
+                        onChange={(e) => patchOpt(gi, oi, { nameZh: e.target.value })}
+                        placeholder="中文 (ถ้ามี)"
+                        className="flex-1 rounded border border-slate-200 px-2 py-0.5 text-xs"
                       />
                     </div>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        patchGroup(gi, {
-                          options: g.options.filter((_, j) => j !== oi),
-                        })
-                      }
-                      className="text-slate-400"
-                    >
-                      ✕
-                    </button>
                   </div>
                 ))}
                 <button
@@ -214,7 +257,7 @@ export function ManageModifiers({ menu, onClose, onSaved }: Props) {
                     patchGroup(gi, {
                       options: [
                         ...g.options,
-                        { name: '', priceBaht: '0', isAvailable: true },
+                        { name: '', nameEn: '', nameZh: '', priceBaht: '0', isAvailable: true },
                       ],
                     })
                   }
@@ -231,7 +274,7 @@ export function ManageModifiers({ menu, onClose, onSaved }: Props) {
             onClick={() =>
               setGroups((gs) => [
                 ...gs,
-                { name: '', minSelect: 0, maxSelect: 1, options: [] },
+                { name: '', nameEn: '', nameZh: '', minSelect: 0, maxSelect: 1, options: [] },
               ])
             }
             className="w-full rounded-lg border border-dashed border-slate-300 py-2 text-sm font-medium text-slate-500"

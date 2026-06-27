@@ -2,6 +2,7 @@ import type { OrderItem } from '../type/domain';
 import { formatBaht } from '../utils/money';
 import { formatTime } from '../utils/datetime';
 import { groupByBatch, formatComboItems } from '../utils/menu';
+import { useT } from '../i18n';
 import { StatusBadge } from './StatusBadge';
 import { MenuThumb } from './MenuThumb';
 
@@ -10,10 +11,11 @@ interface OrderHistoryProps {
 }
 
 export function OrderHistory({ items }: OrderHistoryProps) {
+  const t = useT();
   if (items.length === 0) {
     return (
       <p className="rounded-xl bg-white p-4 text-center text-sm text-slate-400">
-        ยังไม่มีรายการที่สั่ง
+        {t('noOrders')}
       </p>
     );
   }
@@ -25,8 +27,8 @@ export function OrderHistory({ items }: OrderHistoryProps) {
       {batches.map((batch, idx) => (
         <div key={batch[0].batchId} className="rounded-xl bg-white p-4 shadow-sm">
           <p className="mb-2 flex items-center justify-between text-xs font-semibold text-slate-400">
-            <span>รอบที่ {idx + 1}</span>
-            <span>สั่ง {formatTime(batch[0].createdAt)}</span>
+            <span>{t('roundN', { n: idx + 1 })}</span>
+            <span>{t('orderedAt', { time: formatTime(batch[0].createdAt) })}</span>
           </p>
           <ul className="space-y-2">
             {batch.map((item) => (
@@ -56,7 +58,7 @@ export function OrderHistory({ items }: OrderHistoryProps) {
                   )}
                   {item.servedAt && (
                     <span className="block text-xs text-emerald-600">
-                      เสิร์ฟ {formatTime(item.servedAt)}
+                      {t('servedAtTime', { time: formatTime(item.servedAt) })}
                     </span>
                   )}
                 </span>
