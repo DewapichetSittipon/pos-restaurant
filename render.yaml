@@ -7,8 +7,10 @@ services:
     rootDir: backend
     # --include=dev จำเป็น: @nestjs/cli, typescript, prisma อยู่ใน devDependencies
     # แต่ NODE_ENV=production ทำให้ npm ข้าม devDeps ตามปกติ
-    buildCommand: npm install --include=dev && npx prisma generate && npm run build
-    startCommand: npx prisma migrate deploy && npm run start:prod
+    # migrate deploy อยู่ขั้น build: ถ้า migration ล้ม = build fail (เวอร์ชันเก่ายังรันต่อ ไม่ล่ม)
+    # idempotent — migration ที่ applied แล้วถูกข้าม; ไม่ต้องรันมือ
+    buildCommand: npm install --include=dev && npx prisma generate && npm run build && npx prisma migrate deploy
+    startCommand: npm run start:prod
     healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
