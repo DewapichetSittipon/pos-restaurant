@@ -7,7 +7,8 @@
 > - `CONTEXT.md` — **ubiquitous language / domain model** (Bill, OrderItem, batch_id ฯลฯ)
 > - `README.md` — ภาพรวมฟีเจอร์แยกตาม role
 > - `docs/adr/` — บันทึกการตัดสินใจเชิงสถาปัตยกรรม
-> - `docs/` — backup/restore, data retention, onboarding ร้านใหม่, thermal printing
+> - `docs/` — backup/restore, data retention, onboarding ร้านใหม่, thermal printing,
+>   `user-manual.md` (คู่มือใช้งานแยกตาม role; มีหน้าในแอปที่ `web/src/pages/HelpPage.tsx`)
 
 ## Git workflow
 
@@ -30,7 +31,9 @@
 backend แยกเป็น NestJS module ตาม domain: `auth`, `orders`, `menus`, `tables`,
 `categories`, `members`, `reports`, `reservations`, `shifts`, `service-requests`,
 `shop`, `staff`, `signup`, `admin` (platform), `audit`, `events` (socket),
-`notifications`, `uploads`, `health`.
+`notifications`, `uploads`, `promotions`, `health`. logic ที่ใช้ร่วม (เงิน/โปรโมชั่น/
+i18n/observability) อยู่ใน `backend/src/common/` เช่น `bill-math.ts`,
+`promotion-math.ts`, `i18n.ts`.
 
 ## คำสั่งที่ใช้บ่อย
 
@@ -69,6 +72,13 @@ npm test           # vitest
   ไม่ใช่ "pending" (กันชนกับ Bill.pending).
 - **Real-time** — เปลี่ยนสถานะ/สั่งใหม่ ยิงผ่าน Socket.IO; ชื่อ event อยู่ที่
   `web/src/services/socket.ts` (`SOCKET_EVENTS`).
+- **Promotion engine แบบมีกฎ** — happy hour / BOGO / สมาชิก / วันเกิด คิดส่วนลดผ่าน
+  `backend/src/common/promotion-math.ts` (pure fn, มี `.spec.ts`). อย่าฮาร์ดโค้ดส่วนลด
+  ในบิล — ให้ผ่าน engine เพื่อให้ทดสอบได้และคิดเป็นสตางค์เหมือนกัน.
+- **i18n เมนูฝั่งลูกค้า** — รองรับ ไทย/อังกฤษ/จีน; **ไทยเป็น fallback เสมอ**. ชื่อ/
+  คำอธิบายแบบหลายภาษาเก็บใน DB (migration `menu_i18n`) เป็น `TranslatedName`. ฝั่ง web
+  ใช้ `web/src/i18n/` (`useLangStore`, persist ที่ localStorage `pos.lang`); ฝั่ง backend
+  resolve ภาษาใน `common/i18n.ts`.
 
 ## ตรวจงานก่อนถือว่าเสร็จ
 
