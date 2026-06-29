@@ -17,6 +17,7 @@ import { ShopModule } from './shop/shop.module';
 import { ShiftsModule } from './shifts/shifts.module';
 import { ReservationsModule } from './reservations/reservations.module';
 import { MembersModule } from './members/members.module';
+import { PromotionsModule } from './promotions/promotions.module';
 import { AuditModule } from './audit/audit.module';
 import { StorageModule } from './uploads/storage.module';
 import { NotificationModule } from './notifications/notification.module';
@@ -43,6 +44,7 @@ import { HealthController } from './health/health.controller';
     ShiftsModule,
     ReservationsModule,
     MembersModule,
+    PromotionsModule,
     AuditModule,
     StorageModule,
     NotificationModule,

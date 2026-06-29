@@ -207,6 +207,8 @@ export async function renderReceiptCanvas(
   const vatInclusive = bill.vatInclusive ?? true;
   const pointsRedeemed = bill.pointsRedeemed ?? 0;
   const pointsEarned = bill.pointsEarned ?? 0;
+  const promotionDiscount = bill.promotionDiscount ?? 0;
+  const promotionName = bill.promotionName ?? null;
   const deliveryFee = bill.deliveryFee ?? 0;
   const total = bill.totalPrice ?? subtotal - discount;
   const paidAt = bill.paidAt ?? new Date().toISOString();
@@ -228,7 +230,12 @@ export async function renderReceiptCanvas(
       ? bill.receivedAmount - total
       : null;
   const hasAdjustments =
-    discount > 0 || pointsRedeemed > 0 || serviceCharge > 0 || vatRate > 0 || deliveryFee > 0;
+    discount > 0 ||
+    promotionDiscount > 0 ||
+    pointsRedeemed > 0 ||
+    serviceCharge > 0 ||
+    vatRate > 0 ||
+    deliveryFee > 0;
 
   // ---- หัวร้าน ----
   pen.gap(6);
@@ -267,6 +274,8 @@ export async function renderReceiptCanvas(
 
   // ---- สรุปยอด ----
   if (hasAdjustments) pen.row('ยอดรวม', baht(subtotal), 20);
+  if (promotionDiscount > 0)
+    pen.row(promotionName || 'โปรโมชัน', `-${baht(promotionDiscount)}`, 20);
   if (discount > 0) pen.row('ส่วนลด', `-${baht(discount)}`, 20);
   if (pointsRedeemed > 0)
     pen.row(`แลกแต้ม ${pointsRedeemed} แต้ม`, `-${baht(pointsRedeemed * 100)}`, 20);

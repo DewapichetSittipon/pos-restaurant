@@ -10,6 +10,7 @@ import { EventsGateway } from '../events/events.gateway';
 import { SocketEvent } from '../events/socket.constants';
 import { computeBillTotals } from '../common/bill-math';
 import { orderTypeLabel } from '../common/order-type';
+import { PromotionsService } from '../promotions/promotions.service';
 
 // include มาตรฐานสำหรับเช็คบิล (รายการ+ตัวเลือก, โต๊ะ, ร้าน)
 const CHECKOUT_INCLUDE = {
@@ -29,6 +30,7 @@ interface CheckoutOpts {
   receivedAmount?: number;
   memberId?: number;
   redeemPoints?: number;
+  promotionId?: number;
 }
 
 @Injectable()
@@ -36,6 +38,7 @@ export class TablesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly events: EventsGateway,
+    private readonly promotions: PromotionsService,
   ) {}
 
   // เพิ่มโต๊ะใหม่ในร้าน (table_number unique ต่อร้าน)
@@ -426,22 +429,54 @@ export class TablesService {
       );
 
       // สมาชิก: แลกแต้มเป็นส่วนลด (1 แต้ม = 1 บาท) ก่อนคิดภาษี
-      let member: { id: number; points: number } | null = null;
+      let member: {
+        id: number;
+        points: number;
+        birthDate: Date | null;
+      } | null = null;
       if (opts.memberId != null) {
         const m = await tx.member.findFirst({
           where: { id: opts.memberId, shopId },
-          select: { id: true, points: true },
+          select: { id: true, points: true, birthDate: true },
         });
         if (!m) throw new NotFoundException('ไม่พบสมาชิก');
         member = m;
       }
 
+      // โปรโมชัน: คิดส่วนลดจาก rule ก่อนส่วนลดมือ/แลกแต้ม (backend คิดเอง ไม่เชื่อ client)
+      let promo: { id: number; name: string; discount: number } | null = null;
+      if (opts.promotionId != null) {
+        const resolved = await this.promotions.resolveForCheckout(
+          tx,
+          shopId,
+          opts.promotionId,
+          billedItems.map((i) => ({
+            unitPrice: i.unitPrice,
+            quantity: i.quantity,
+          })),
+          member ? { birthDate: member.birthDate } : null,
+          new Date(),
+        );
+        // ใช้เฉพาะเมื่อโปรยังเข้าเงื่อนไข (discount > 0) — ไม่งั้นเมินไป
+        if (resolved.discount > 0) {
+          promo = {
+            id: opts.promotionId,
+            name: resolved.name,
+            discount: Math.min(resolved.discount, subtotal),
+          };
+        }
+      }
+      const promoDiscount = promo?.discount ?? 0;
+
+      // ส่วนลดมือคิดบนยอดที่เหลือหลังหักโปร
       const manualDiscount = Math.min(
         Math.max(opts.discount ?? 0, 0),
-        subtotal,
+        subtotal - promoDiscount,
       );
-      // แลกแต้มได้ไม่เกิน: แต้มคงเหลือ และ ยอดที่เหลือหลังหักส่วนลดปกติ
-      const maxRedeemByBill = Math.floor((subtotal - manualDiscount) / 100);
+      // แลกแต้มได้ไม่เกิน: แต้มคงเหลือ และ ยอดที่เหลือหลังหักโปร+ส่วนลดมือ
+      const maxRedeemByBill = Math.floor(
+        (subtotal - promoDiscount - manualDiscount) / 100,
+      );
       const redeemPoints = member
         ? Math.min(
             Math.max(opts.redeemPoints ?? 0, 0),
@@ -459,7 +494,7 @@ export class TablesService {
       };
       const totals = computeBillTotals(
         subtotal,
-        manualDiscount + redeemSatang,
+        promoDiscount + manualDiscount + redeemSatang,
         charges,
       );
       const { serviceCharge, vatAmount } = totals;
@@ -509,6 +544,9 @@ export class TablesService {
           memberId: member?.id ?? null,
           pointsRedeemed: redeemPoints,
           pointsEarned,
+          promotionId: promo?.id ?? null,
+          promotionName: promo?.name ?? null,
+          promotionDiscount: promoDiscount,
         },
       });
       // คืนโต๊ะเป็นว่าง — เฉพาะออเดอร์ที่ผูกโต๊ะ (dine-in)

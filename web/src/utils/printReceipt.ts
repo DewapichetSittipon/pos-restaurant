@@ -91,6 +91,8 @@ async function printReceiptBrowser(bill: CheckoutResult): Promise<void> {
   const vatInclusive = bill.vatInclusive ?? true;
   const pointsRedeemed = bill.pointsRedeemed ?? 0;
   const pointsEarned = bill.pointsEarned ?? 0;
+  const promotionDiscount = bill.promotionDiscount ?? 0;
+  const promotionName = bill.promotionName ?? null;
   const total = bill.totalPrice ?? subtotal - discount;
   const paidAt = bill.paidAt ?? new Date().toISOString();
 
@@ -121,6 +123,7 @@ async function printReceiptBrowser(bill: CheckoutResult): Promise<void> {
   // โชว์บรรทัดยอดรวม(ก่อนปรับ) เมื่อมีส่วนลด/แลกแต้ม/เซอร์วิส/VAT อย่างใดอย่างหนึ่ง
   const hasAdjustments =
     discount > 0 ||
+    promotionDiscount > 0 ||
     pointsRedeemed > 0 ||
     serviceCharge > 0 ||
     vatRate > 0 ||
@@ -141,6 +144,9 @@ async function printReceiptBrowser(bill: CheckoutResult): Promise<void> {
   const summary = [
     hasAdjustments
       ? `<div class="meta"><span>ยอดรวม</span><span>${baht(subtotal)}</span></div>`
+      : '',
+    promotionDiscount > 0
+      ? `<div class="meta"><span>${escapeHtml(promotionName || 'โปรโมชัน')}</span><span>-${baht(promotionDiscount)}</span></div>`
       : '',
     discount > 0
       ? `<div class="meta"><span>ส่วนลด</span><span>-${baht(discount)}</span></div>`

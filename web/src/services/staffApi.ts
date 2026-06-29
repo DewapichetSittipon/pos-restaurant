@@ -8,6 +8,7 @@ import type {
 } from '../type/domain';
 import type {
   ActiveOrderItem,
+  ApplicablePromotion,
   BillDetail,
   CheckoutPayload,
   CheckoutResult,
@@ -17,6 +18,8 @@ import type {
   Member,
   OpenTableResult,
   PrepTimesReport,
+  Promotion,
+  PromotionInput,
   RangeReport,
   Reservation,
   Shift,
@@ -312,8 +315,58 @@ export async function lookupMember(phone: string): Promise<Member | null> {
 export async function createMember(
   phone: string,
   name?: string,
+  birthDate?: string,
 ): Promise<Member> {
-  const { data } = await api.post<Member>('/members', { phone, name });
+  const { data } = await api.post<Member>('/members', {
+    phone,
+    name,
+    birthDate: birthDate || undefined,
+  });
+  return data;
+}
+
+export async function updateMember(
+  id: number,
+  input: { name?: string; birthDate?: string },
+): Promise<Member> {
+  const { data } = await api.patch<Member>(`/members/${id}`, input);
+  return data;
+}
+
+// ----- โปรโมชัน -----
+export async function fetchPromotions(): Promise<Promotion[]> {
+  const { data } = await api.get<Promotion[]>('/promotions');
+  return data;
+}
+
+export async function createPromotion(
+  input: PromotionInput,
+): Promise<Promotion> {
+  const { data } = await api.post<Promotion>('/promotions', input);
+  return data;
+}
+
+export async function updatePromotion(
+  id: number,
+  input: Partial<PromotionInput>,
+): Promise<Promotion> {
+  const { data } = await api.patch<Promotion>(`/promotions/${id}`, input);
+  return data;
+}
+
+export async function deletePromotion(id: number): Promise<void> {
+  await api.delete(`/promotions/${id}`);
+}
+
+// โปรที่ใช้ได้กับบิลตอนนี้ (+ สมาชิกที่เลือก) พร้อมส่วนลดที่คำนวณแล้ว
+export async function fetchApplicablePromotions(
+  billId: number,
+  memberId?: number,
+): Promise<ApplicablePromotion[]> {
+  const { data } = await api.get<ApplicablePromotion[]>(
+    '/promotions/applicable',
+    { params: { billId, memberId } },
+  );
   return data;
 }
 

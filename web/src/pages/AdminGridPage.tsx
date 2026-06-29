@@ -26,6 +26,7 @@ interface CheckoutTarget {
   tableId: number;
   tableNumber: string;
   total: number; // สตางค์ — ยอดล่าสุดจาก grid
+  billId?: number; // บิลที่เปิดอยู่ (ใช้ดึงโปรโมชัน)
 }
 
 // สร้างลิงก์ลูกค้าจากโต๊ะที่เปิดอยู่ (ไม่ต้องเรียก API ใหม่)
@@ -105,6 +106,7 @@ export function AdminGridPage() {
       tableId,
       tableNumber: table?.tableNumber ?? String(tableId),
       total: table?.bills[0]?.totalPrice ?? 0,
+      billId: table?.bills[0]?.id,
     });
   }
 
@@ -177,6 +179,7 @@ export function AdminGridPage() {
         <CheckoutConfirmModal
           tableNumber={checkout.tableNumber}
           subtotal={checkout.total}
+          billId={checkout.billId}
           charges={charges}
           loyaltyEarnRate={loyaltyEarnRate}
           promptpayId={promptpayId}

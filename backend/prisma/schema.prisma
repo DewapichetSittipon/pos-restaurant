@@ -75,6 +75,16 @@ enum OrderType {
   delivery
 }
 
+// ชนิดของโปรโมชัน (rule-based discount): คิดส่วนลดต่างกันตาม type
+// percent  = ลด % ของยอด (value = basis points, 1000 = 10%); จำกัดเพดานได้ด้วย maxDiscount
+// amount   = ลดเป็นจำนวนเงินคงที่ (value = สตางค์)
+// bogo     = ซื้อครบ buyQty แถม getQty (ส่วนลด = ราคารวมชิ้นที่ถูกที่สุด getQty ชิ้นต่อรอบ)
+enum PromotionType {
+  percent
+  amount
+  bogo
+}
+
 // บทบาทพนักงานภายในร้าน — กำหนดว่าเห็น/ทำอะไรได้บ้าง
 // OWNER = เจ้าของร้าน เห็นทุกอย่าง (จัดการร้าน/พนักงาน/ยอดขาย)
 // WAITER = พนักงานเสิร์ฟ เห็นแค่ผังโต๊ะ (เปิดโต๊ะ/รับออเดอร์/เช็คบิล)
@@ -125,18 +135,52 @@ model Shop {
   shifts     Shift[]
   reservations Reservation[]
   members    Member[]
+  promotions Promotion[]
 
   @@map("shops")
+}
+
+// โปรโมชันแบบมีกฎ (rule-based) — ร้านตั้งเงื่อนไขเอง ระบบเลือกอันที่เข้าเงื่อนไขให้ตอนเช็คบิล
+// เงื่อนไข: ยอดขั้นต่ำ + ช่วงเวลา (happy hour) + วันในสัปดาห์ + เฉพาะสมาชิก/วันเกิด
+model Promotion {
+  id          Int           @id @default(autoincrement())
+  shopId      Int           @map("shop_id")
+  name        String
+  type        PromotionType
+  // ค่าส่วนลด: percent = basis points (1000 = 10%); amount = สตางค์; bogo = ไม่ใช้ (อิง buy/get)
+  value       Int           @default(0)
+  minSubtotal Int           @default(0) @map("min_subtotal") // ยอดขั้นต่ำ (สตางค์) ถึงใช้ได้, 0 = ไม่จำกัด
+  maxDiscount Int?          @map("max_discount") // เพดานส่วนลด (สตางค์) เฉพาะ percent, null = ไม่จำกัด
+  // ช่วงเวลา happy hour: นาทีจากเที่ยงคืน 0–1439 (เวลาไทย); null ทั้งคู่ = ทั้งวัน; start>end = ข้ามเที่ยงคืน
+  startMinute Int?          @map("start_minute")
+  endMinute   Int?          @map("end_minute")
+  // วันในสัปดาห์ที่ใช้ได้ (bitmask: bit0=อาทิตย์ … bit6=เสาร์); 127 = ทุกวัน
+  daysOfWeek  Int           @default(127) @map("days_of_week")
+  // BOGO: ซื้อ buyQty แถม getQty (นับรวมทั้งบิล)
+  buyQty      Int           @default(0) @map("buy_qty")
+  getQty      Int           @default(0) @map("get_qty")
+  membersOnly Boolean       @default(false) @map("members_only") // true = ใช้ได้เฉพาะบิลที่ผูกสมาชิก (ราคาสมาชิก)
+  birthdayOnly Boolean      @default(false) @map("birthday_only") // true = ใช้ได้เฉพาะสมาชิกที่วันนี้ตรงวันเกิด
+  isActive    Boolean       @default(true) @map("is_active")
+  priority    Int           @default(0) // ลำดับเสนอ (สูงกว่ามาก่อน เมื่อส่วนลดเท่ากัน)
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  shop  Shop   @relation(fields: [shopId], references: [id])
+  bills Bill[]
+
+  @@index([shopId])
+  @@map("promotions")
 }
 
 // สมาชิกร้าน (loyalty) — ระบุด้วยเบอร์โทร (unique ต่อร้าน) สะสม/แลกแต้ม
 model Member {
   id        Int      @id @default(autoincrement())
-  shopId    Int      @map("shop_id")
+  shopId    Int       @map("shop_id")
   phone     String
   name      String?
-  points    Int      @default(0)
-  createdAt DateTime @default(now()) @map("created_at")
+  birthDate DateTime? @map("birth_date") // วันเกิด (ใช้โปรวันเกิด) — เก็บเฉพาะวันที่, เทียบ วัน/เดือน
+  points    Int       @default(0)
+  createdAt DateTime  @default(now()) @map("created_at")
 
   shop  Shop   @relation(fields: [shopId], references: [id])
   bills Bill[]
@@ -280,6 +324,10 @@ model Bill {
   memberId        Int? @map("member_id")
   pointsEarned    Int  @default(0) @map("points_earned") // แต้มที่ได้รับจากบิลนี้
   pointsRedeemed  Int  @default(0) @map("points_redeemed") // แต้มที่ใช้แลกส่วนลด (1 แต้ม = 1 บาท)
+  // โปรโมชันที่ใช้ตอน checkout (snapshot — เก็บชื่อ+ยอดลด กันโปรถูกแก้/ลบภายหลัง)
+  promotionId       Int?    @map("promotion_id")
+  promotionName     String? @map("promotion_name") // snapshot ชื่อโปรตอนใช้
+  promotionDiscount Int     @default(0) @map("promotion_discount") // สตางค์ ส่วนลดจากโปร (แยกจาก discount=ส่วนลดมือ)
   status         BillStatus     @default(pending)
   // เลขที่ใบเสร็จ/ใบกำกับภาษี — รันต่อเนื่องต่อร้าน (set ตอน checkout), null = ยังไม่ชำระ
   receiptNumber  Int?           @map("receipt_number")
@@ -295,6 +343,7 @@ model Bill {
   table           Table?           @relation(fields: [tableId], references: [id])
   shift           Shift?           @relation(fields: [shiftId], references: [id])
   member          Member?          @relation(fields: [memberId], references: [id])
+  promotion       Promotion?       @relation(fields: [promotionId], references: [id])
   orderItems      OrderItem[]
   serviceRequests ServiceRequest[]
 
@@ -305,6 +354,7 @@ model Bill {
   @@index([paidAt])
   @@index([shiftId])
   @@index([memberId])
+  @@index([promotionId])
   // เลขที่ใบเสร็จห้ามซ้ำภายในร้านเดียวกัน (null ซ้ำได้ — บิลที่ยังไม่ชำระ)
   @@unique([shopId, receiptNumber])
   @@map("bills")

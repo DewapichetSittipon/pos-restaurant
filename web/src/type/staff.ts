@@ -21,8 +21,41 @@ export interface Member {
   id: number;
   phone: string;
   name: string | null;
+  birthDate: string | null; // ISO date (YYYY-MM-DD...) หรือ null
   points: number;
   createdAt: string;
+}
+
+// โปรโมชันแบบมีกฎ (rule-based discount)
+export type PromotionType = 'percent' | 'amount' | 'bogo';
+
+export interface Promotion {
+  id: number;
+  shopId: number;
+  name: string;
+  type: PromotionType;
+  value: number; // percent → basis points; amount → สตางค์
+  minSubtotal: number; // สตางค์
+  maxDiscount: number | null; // สตางค์
+  startMinute: number | null; // นาทีจากเที่ยงคืน (เวลาไทย)
+  endMinute: number | null;
+  daysOfWeek: number; // bitmask
+  buyQty: number;
+  getQty: number;
+  membersOnly: boolean;
+  birthdayOnly: boolean;
+  isActive: boolean;
+  priority: number;
+  createdAt: string;
+}
+
+// payload สร้าง/แก้โปร (ฝั่ง client) — ฟิลด์ตรงกับ Promotion ยกเว้น id/shopId/createdAt
+export type PromotionInput = Omit<Promotion, 'id' | 'shopId' | 'createdAt'>;
+
+// โปรที่ใช้ได้กับบิลตอนนี้ + ส่วนลดที่คำนวณแล้ว
+export interface ApplicablePromotion {
+  promotion: Promotion;
+  discount: number; // สตางค์
 }
 
 // ผลลัพธ์ตอนเช็คบิล — มีข้อมูลครบสำหรับพิมพ์ใบเสร็จ
@@ -47,11 +80,12 @@ export interface CheckoutResult extends Bill {
 
 // payload ตอนเช็คบิล
 export interface CheckoutPayload {
-  discount?: number; // สตางค์
+  discount?: number; // สตางค์ (ส่วนลดมือ)
   paymentMethod: 'cash' | 'transfer';
   receivedAmount?: number; // สตางค์ (เงินสด)
   memberId?: number; // สมาชิกที่ผูกบิล
   redeemPoints?: number; // แต้มที่ขอแลก
+  promotionId?: number; // โปรโมชันที่เลือกใช้
 }
 
 // บทบาทพนักงานในร้าน (ตรงกับ enum StaffRole ฝั่ง backend)

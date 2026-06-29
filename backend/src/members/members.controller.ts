@@ -3,12 +3,16 @@ import {
   Controller,
   Get,
   NotFoundException,
+  Param,
+  ParseIntPipe,
+  Patch,
   Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
 import { MembersService } from './members.service';
 import { CreateMemberDto } from './dto/create-member.dto';
+import { UpdateMemberDto } from './dto/update-member.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ActiveShopGuard } from '../auth/active-shop.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -36,6 +40,15 @@ export class MembersController {
 
   @Post()
   create(@CurrentShop() shopId: number, @Body() dto: CreateMemberDto) {
-    return this.members.create(shopId, dto.phone, dto.name);
+    return this.members.create(shopId, dto.phone, dto.name, dto.birthDate);
+  }
+
+  @Patch(':id')
+  update(
+    @CurrentShop() shopId: number,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateMemberDto,
+  ) {
+    return this.members.update(shopId, id, dto);
   }
 }

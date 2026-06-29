@@ -26,4 +26,9 @@ export class CheckoutDto {
   @IsInt()
   @Min(0)
   redeemPoints?: number;
+
+  // โปรโมชันที่เลือกใช้ — backend ตรวจเงื่อนไข + คิดส่วนลดเองอีกรอบ (ไม่เชื่อยอดจาก client)
+  @IsOptional()
+  @IsInt()
+  promotionId?: number;
 }

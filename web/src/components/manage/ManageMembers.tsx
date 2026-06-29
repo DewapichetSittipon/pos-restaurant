@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { createMember, fetchMembers } from '../../services/staffApi';
+import {
+  createMember,
+  fetchMembers,
+  updateMember,
+} from '../../services/staffApi';
 import type { Member } from '../../type/staff';
 
 function errMsg(err: unknown, fallback: string): string {
@@ -9,11 +13,17 @@ function errMsg(err: unknown, fallback: string): string {
     : fallback;
 }
 
+// ISO date → "YYY-MM-DD" สำหรับ input type=date (null = ว่าง)
+function toDateInput(iso: string | null): string {
+  return iso ? iso.slice(0, 10) : '';
+}
+
 export function ManageMembers() {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [phone, setPhone] = useState('');
   const [name, setName] = useState('');
+  const [birthDate, setBirthDate] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,14 +42,32 @@ export function ManageMembers() {
     setBusy(true);
     setError(null);
     try {
-      await createMember(phone.trim(), name.trim() || undefined);
+      await createMember(
+        phone.trim(),
+        name.trim() || undefined,
+        birthDate || undefined,
+      );
       setPhone('');
       setName('');
+      setBirthDate('');
       reload();
     } catch (err) {
       setError(errMsg(err, 'เพิ่มสมาชิกไม่สำเร็จ'));
     } finally {
       setBusy(false);
+    }
+  }
+
+  // แก้วันเกิดสมาชิกที่มีอยู่ (ใช้กับโปรวันเกิด)
+  async function changeBirthday(id: number, value: string): Promise<void> {
+    if (!value) return;
+    try {
+      await updateMember(id, { birthDate: value });
+      setMembers((ms) =>
+        ms.map((m) => (m.id === id ? { ...m, birthDate: value } : m)),
+      );
+    } catch {
+      setError('อัปเดตวันเกิดไม่สำเร็จ');
     }
   }
 
@@ -65,6 +93,13 @@ export function ManageMembers() {
           placeholder="ชื่อ (ถ้ามี)"
           className="flex-1 rounded-lg border border-slate-300 px-3 py-2"
         />
+        <input
+          type="date"
+          value={birthDate}
+          onChange={(e) => setBirthDate(e.target.value)}
+          title="วันเกิด (สำหรับโปรวันเกิด)"
+          className="rounded-lg border border-slate-300 px-3 py-2 text-slate-600"
+        />
         <button
           type="submit"
           disabled={busy}
@@ -83,14 +118,27 @@ export function ManageMembers() {
       ) : (
         <ul className="divide-y divide-slate-100">
           {members.map((m) => (
-            <li key={m.id} className="flex items-center justify-between py-2.5 text-sm">
-              <span>
+            <li key={m.id} className="flex items-center justify-between gap-2 py-2.5 text-sm">
+              <span className="min-w-0">
                 <span className="font-medium text-slate-800">
                   {m.name || m.phone}
                 </span>
                 {m.name && <span className="ml-2 text-slate-400">{m.phone}</span>}
               </span>
-              <span className="font-semibold text-amber-600">{m.points} แต้ม</span>
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-1 text-xs text-slate-400">
+                  🎂
+                  <input
+                    type="date"
+                    value={toDateInput(m.birthDate)}
+                    onChange={(e) => changeBirthday(m.id, e.target.value)}
+                    className="rounded border border-slate-200 px-1.5 py-1 text-slate-600"
+                  />
+                </label>
+                <span className="font-semibold text-amber-600">
+                  {m.points} แต้ม
+                </span>
+              </div>
             </li>
           ))}
         </ul>

@@ -1,10 +1,18 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { formatBaht } from '../utils/money';
 import { promptpayPayload } from '../utils/promptpay';
 import { computeBillTotals, type BillCharges } from '../utils/billMath';
-import { createMember, lookupMember } from '../services/staffApi';
-import type { CheckoutPayload, Member } from '../type/staff';
+import {
+  createMember,
+  fetchApplicablePromotions,
+  lookupMember,
+} from '../services/staffApi';
+import type {
+  ApplicablePromotion,
+  CheckoutPayload,
+  Member,
+} from '../type/staff';
 
 interface CheckoutConfirmModalProps {
   tableNumber: string;
@@ -13,6 +21,7 @@ interface CheckoutConfirmModalProps {
   loyaltyEarnRate: number; // แต้มต่อ 100 บาท (0 = ปิดระบบสมาชิก)
   promptpayId: string | null; // PromptPay ของร้าน (null = ไม่มี → ไม่โชว์ QR)
   busy: boolean;
+  billId?: number; // บิลที่จะเช็ค — ใช้ดึงโปรโมชันที่ใช้ได้ (ไม่มี = ไม่โชว์โปร)
   deliveryFee?: number; // สตางค์ ค่าส่ง (เดลิเวอรี) — บวกท้ายยอดสุทธิ
   label?: string; // ป้ายหัวข้อแทน "โต๊ะ X" (เช่น "กลับบ้าน")
   onConfirm: (payload: CheckoutPayload) => void;
@@ -32,6 +41,7 @@ export function CheckoutConfirmModal({
   loyaltyEarnRate,
   promptpayId,
   busy,
+  billId,
   deliveryFee = 0,
   label,
   onConfirm,
@@ -48,10 +58,45 @@ export function CheckoutConfirmModal({
   const [lookingUp, setLookingUp] = useState(false);
   const [redeemInput, setRedeemInput] = useState('');
 
-  const manualDiscount = Math.min(toSatang(discountInput), subtotal);
-  // แลกแต้มได้ไม่เกิน: แต้มคงเหลือ + ยอดที่เหลือหลังหักส่วนลด
+  // โปรโมชันที่ใช้ได้ (ดึงจาก backend ตามบิล+สมาชิก) + อันที่เลือก
+  const [promos, setPromos] = useState<ApplicablePromotion[]>([]);
+  const [selectedPromoId, setSelectedPromoId] = useState<number | null>(null);
+
+  // ดึงโปรที่ใช้ได้เมื่อเปิด modal/เปลี่ยนสมาชิก (โปรสมาชิก/วันเกิดขึ้นกับ member)
+  useEffect(() => {
+    if (billId == null) return;
+    let alive = true;
+    fetchApplicablePromotions(billId, member?.id)
+      .then((list) => {
+        if (!alive) return;
+        setPromos(list);
+        // ถ้าโปรที่เลือกไว้หลุดเงื่อนไขแล้ว → ยกเลิกการเลือก
+        setSelectedPromoId((cur) =>
+          cur != null && list.some((p) => p.promotion.id === cur) ? cur : null,
+        );
+      })
+      .catch(() => {
+        if (alive) setPromos([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [billId, member?.id]);
+
+  const promoDiscount =
+    promos.find((p) => p.promotion.id === selectedPromoId)?.discount ?? 0;
+
+  // ส่วนลดมือคิดบนยอดที่เหลือหลังหักโปร
+  const manualDiscount = Math.min(
+    toSatang(discountInput),
+    subtotal - promoDiscount,
+  );
+  // แลกแต้มได้ไม่เกิน: แต้มคงเหลือ + ยอดที่เหลือหลังหักโปร+ส่วนลดมือ
   const maxRedeem = member
-    ? Math.min(member.points, Math.floor((subtotal - manualDiscount) / 100))
+    ? Math.min(
+        member.points,
+        Math.floor((subtotal - promoDiscount - manualDiscount) / 100),
+      )
     : 0;
   const redeemPoints = member
     ? Math.min(Math.max(parseInt(redeemInput, 10) || 0, 0), maxRedeem)
@@ -61,10 +106,10 @@ export function CheckoutConfirmModal({
     () =>
       computeBillTotals(
         subtotal,
-        manualDiscount + redeemPoints * 100,
+        promoDiscount + manualDiscount + redeemPoints * 100,
         charges,
       ),
-    [subtotal, manualDiscount, redeemPoints, charges],
+    [subtotal, promoDiscount, manualDiscount, redeemPoints, charges],
   );
   const { serviceCharge, vatAmount, total } = totals;
   // ยอดที่ต้องจ่ายจริง = ยอดสุทธิอาหาร + ค่าส่ง (แต้มคิดจากยอดอาหารเท่านั้น)
@@ -107,12 +152,13 @@ export function CheckoutConfirmModal({
 
   function handleConfirm(): void {
     onConfirm({
-      // ส่งส่วนลดปกติ (ไม่รวมแต้ม) — backend คิดแต้มเอง
+      // ส่งส่วนลดปกติ (ไม่รวมโปร/แต้ม) — backend คิดโปร+แต้มเอง
       discount: manualDiscount > 0 ? manualDiscount : undefined,
       paymentMethod: method,
       receivedAmount: method === 'cash' && received > 0 ? received : undefined,
       memberId: member?.id,
       redeemPoints: redeemPoints > 0 ? redeemPoints : undefined,
+      promotionId: selectedPromoId ?? undefined,
     });
   }
 
@@ -144,6 +190,16 @@ export function CheckoutConfirmModal({
               className="w-24 rounded-lg border border-slate-300 px-2 py-1.5 text-right"
             />
           </label>
+          {promoDiscount > 0 && (
+            <div className="flex justify-between text-emerald-600">
+              <span>
+                🎉{' '}
+                {promos.find((p) => p.promotion.id === selectedPromoId)
+                  ?.promotion.name ?? 'โปรโมชัน'}
+              </span>
+              <span>-{formatBaht(promoDiscount)}</span>
+            </div>
+          )}
           {redeemPoints > 0 && (
             <div className="flex justify-between text-amber-600">
               <span>แลกแต้ม {redeemPoints} แต้ม</span>
@@ -176,6 +232,36 @@ export function CheckoutConfirmModal({
             <span>{formatBaht(grandTotal)}</span>
           </div>
         </div>
+
+        {/* โปรโมชันที่ใช้ได้ — เลือกได้ทีละอัน (กดซ้ำเพื่อยกเลิก) */}
+        {promos.length > 0 && (
+          <div className="mt-3 rounded-xl bg-emerald-50 p-3">
+            <p className="mb-1.5 text-xs font-semibold text-emerald-700">
+              โปรโมชันที่ใช้ได้
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {promos.map(({ promotion, discount }) => {
+                const active = promotion.id === selectedPromoId;
+                return (
+                  <button
+                    key={promotion.id}
+                    type="button"
+                    onClick={() =>
+                      setSelectedPromoId(active ? null : promotion.id)
+                    }
+                    className={`rounded-lg px-2.5 py-1.5 text-xs font-medium ${
+                      active
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-white text-emerald-700 ring-1 ring-emerald-200'
+                    }`}
+                  >
+                    {promotion.name} · -{formatBaht(discount)}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* สมาชิก/แต้มสะสม (เฉพาะร้านที่เปิดระบบ) */}
         {loyaltyEarnRate > 0 && (

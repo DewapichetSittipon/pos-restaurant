@@ -190,6 +190,7 @@ export function TakeawayPage() {
           tableNumber=""
           label={TYPE_LABEL[checkoutTarget.orderType] ?? ''}
           subtotal={checkoutTarget.totalPrice ?? 0}
+          billId={checkoutTarget.id}
           charges={charges}
           loyaltyEarnRate={loyaltyEarnRate}
           promptpayId={promptpayId}

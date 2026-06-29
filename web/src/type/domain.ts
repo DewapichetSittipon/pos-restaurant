@@ -123,6 +123,9 @@ export interface Bill {
   memberId: number | null; // สมาชิกที่ผูกบิล
   pointsEarned: number; // แต้มที่ได้จากบิลนี้
   pointsRedeemed: number; // แต้มที่ใช้แลกส่วนลด
+  promotionId: number | null; // โปรโมชันที่ใช้ (snapshot)
+  promotionName: string | null; // ชื่อโปร snapshot
+  promotionDiscount: number; // สตางค์ ส่วนลดจากโปร (default 0)
   status: BillStatus;
   receiptNumber: number | null; // เลขที่ใบเสร็จ/ใบกำกับภาษี (set ตอนชำระ)
   qrToken: string;

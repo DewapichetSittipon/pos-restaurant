@@ -1,6 +1,17 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+
+// แปลง 'YYYY-MM-DD' → Date (UTC midnight) เพื่อเทียบ วัน/เดือน แบบคงที่
+function parseBirthDate(value?: string): Date | undefined {
+  if (!value) return undefined;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? undefined : d;
+}
 
 @Injectable()
 export class MembersService {
@@ -21,10 +32,15 @@ export class MembersService {
     });
   }
 
-  async create(shopId: number, phone: string, name?: string) {
+  async create(shopId: number, phone: string, name?: string, birthDate?: string) {
     try {
       return await this.prisma.member.create({
-        data: { shopId, phone: phone.trim(), name: name?.trim() || null },
+        data: {
+          shopId,
+          phone: phone.trim(),
+          name: name?.trim() || null,
+          birthDate: parseBirthDate(birthDate) ?? null,
+        },
       });
     } catch (err) {
       if (
@@ -35,5 +51,24 @@ export class MembersService {
       }
       throw err;
     }
+  }
+
+  async update(
+    shopId: number,
+    id: number,
+    data: { name?: string; birthDate?: string },
+  ) {
+    const member = await this.prisma.member.findFirst({
+      where: { id, shopId },
+      select: { id: true },
+    });
+    if (!member) throw new NotFoundException('ไม่พบสมาชิก');
+    return this.prisma.member.update({
+      where: { id },
+      data: {
+        name: data.name !== undefined ? data.name.trim() || null : undefined,
+        birthDate: parseBirthDate(data.birthDate),
+      },
+    });
   }
 }
