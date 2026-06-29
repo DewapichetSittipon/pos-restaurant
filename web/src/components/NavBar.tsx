@@ -82,6 +82,9 @@ export function NavBar() {
             จัดการร้าน
           </Link>
         )}
+        <Link to="/admin/help" className={linkClass('/admin/help')}>
+          คู่มือ
+        </Link>
       </div>
       <div className="flex items-center gap-3 text-sm">
         <span className="text-slate-500">{staff?.username}</span>

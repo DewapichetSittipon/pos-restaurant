@@ -20,6 +20,7 @@ import { CartDrawer } from '../components/CartDrawer';
 import { ModifierPicker } from '../components/ModifierPicker';
 import { CenterMessage } from '../components/CenterMessage';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
+import { HelpSheet } from '../components/HelpSheet';
 
 export function TablePage() {
   const { tableId } = useParams();
@@ -65,6 +66,7 @@ function TableContent({ tableId, token }: TableContentProps) {
   const [pickerMenu, setPickerMenu] = useState<MenuItem | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
   const [orderOpen, setOrderOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
 
@@ -165,7 +167,15 @@ function TableContent({ tableId, token }: TableContentProps) {
   return (
     <div className="mx-auto min-h-screen max-w-md bg-warm px-4 pb-28">
       <header className="-mx-4 mb-4 bg-linear-to-br from-orange-500 to-rose-500 px-4 pb-7 pt-6 text-white shadow-lg shadow-orange-500/20">
-        <div className="mb-3 flex justify-end">
+        <div className="mb-3 flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => setHelpOpen(true)}
+            aria-label={t('helpTitle')}
+            className="grid h-8 w-8 place-items-center rounded-full border border-white/30 bg-white/15 text-sm font-bold text-white backdrop-blur active:scale-95"
+          >
+            ?
+          </button>
           <LanguageSwitcher />
         </div>
         <div className="flex items-start justify-between">
@@ -263,6 +273,7 @@ function TableContent({ tableId, token }: TableContentProps) {
         onClose={() => setOrderOpen(false)}
         onRequest={handleService}
       />
+      <HelpSheet open={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>
   );
 }

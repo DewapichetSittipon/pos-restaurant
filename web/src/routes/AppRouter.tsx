@@ -8,6 +8,7 @@ import { ShiftPage } from '../pages/ShiftPage';
 import { ReservationPage } from '../pages/ReservationPage';
 import { TakeawayPage } from '../pages/TakeawayPage';
 import { ManagePage } from '../pages/ManagePage';
+import { HelpPage } from '../pages/HelpPage';
 import { SignupPage } from '../pages/SignupPage';
 import { StaffLayout } from '../components/StaffLayout';
 import { ProtectedRoute } from '../components/ProtectedRoute';
@@ -95,6 +96,14 @@ export function AppRouter() {
             element={
               <ProtectedRoute allowedRoles={['OWNER']}>
                 <ManagePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/help"
+            element={
+              <ProtectedRoute allowedRoles={['OWNER', 'WAITER', 'KITCHEN']}>
+                <HelpPage />
               </ProtectedRoute>
             }
           />
