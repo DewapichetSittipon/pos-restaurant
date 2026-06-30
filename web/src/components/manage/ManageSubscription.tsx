@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import {
-  cancelPlanRequest,
-  fetchSubscription,
-  requestPlanUpgrade,
-} from '../../services/manageApi';
+import { QRCodeSVG } from 'qrcode.react';
+import { cancelPlanRequest, fetchSubscription } from '../../services/manageApi';
+import { submitOnboarding } from '../../services/onboardingApi';
+import { promptpayPayload } from '../../utils/promptpay';
+import { daysUntilExpiry, isExpiringSoon } from '../../utils/subscriptionExpiry';
 import type { PlanView, SubscriptionSummary } from '../../type/manage';
 
 // feature key (ตรงกับ backend common/plan-access.ts) -> ป้ายภาษาไทย + ลำดับแสดง
@@ -149,21 +149,22 @@ function PlanCard({
 
       {/* ปุ่ม */}
       <div className="mt-auto pt-2">
-        {isCurrent ? (
-          <button
-            type="button"
-            disabled
-            className="w-full rounded-lg bg-slate-100 py-2.5 text-sm font-semibold text-slate-400"
-          >
-            แพ็กเกจปัจจุบัน
-          </button>
-        ) : isRequested ? (
+        {isRequested ? (
           <button
             type="button"
             disabled
             className="w-full rounded-lg bg-amber-100 py-2.5 text-sm font-semibold text-amber-700"
           >
             รออนุมัติ
+          </button>
+        ) : isCurrent ? (
+          <button
+            type="button"
+            onClick={() => onRequest(plan.key)}
+            disabled={busy || hasPending}
+            className="w-full rounded-lg border border-indigo-200 py-2.5 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 disabled:opacity-40"
+          >
+            ต่ออายุแพ็กเกจนี้
           </button>
         ) : (
           <button
@@ -172,7 +173,7 @@ function PlanCard({
             disabled={busy || hasPending}
             className="w-full rounded-lg bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-40"
           >
-            {plan.priceMonthly > 0 ? 'ขอเปลี่ยนเป็นแพ็กเกจนี้' : 'ขอใช้แพ็กเกจนี้'}
+            เปลี่ยนเป็นแพ็กเกจนี้
           </button>
         )}
       </div>
@@ -221,6 +222,7 @@ export function ManageSubscription(): React.JSX.Element {
   const [data, setData] = useState<SubscriptionSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [payPlanKey, setPayPlanKey] = useState<string | null>(null); // แพ็กเกจที่กำลังจ่าย (เปิด modal)
 
   useEffect(() => {
     fetchSubscription()
@@ -228,20 +230,9 @@ export function ManageSubscription(): React.JSX.Element {
       .catch(() => setError('โหลดข้อมูลแพ็กเกจไม่สำเร็จ'));
   }, []);
 
-  async function handleRequest(planKey: string): Promise<void> {
-    setBusy(true);
-    setError(null);
-    try {
-      setData(await requestPlanUpgrade(planKey));
-    } catch (err) {
-      setError(
-        axios.isAxiosError(err) && err.response?.data?.message
-          ? String(err.response.data.message)
-          : 'ส่งคำขอไม่สำเร็จ',
-      );
-    } finally {
-      setBusy(false);
-    }
+  // เปิด modal จ่ายเงิน (เลือก/ต่ออายุแพ็กเกจ) — ต้องแนบสลิป
+  function openPay(planKey: string): void {
+    setPayPlanKey(planKey);
   }
 
   async function handleCancelRequest(): Promise<void> {
@@ -267,6 +258,17 @@ export function ManageSubscription(): React.JSX.Element {
   const requestedPlan = data.requestedPlanKey
     ? data.availablePlans.find((p) => p.key === data.requestedPlanKey)
     : null;
+  const daysLeft = daysUntilExpiry(data.currentPeriodEnd);
+  const expiringSoon = isExpiringSoon(data.currentPeriodEnd);
+  const payPlan = payPlanKey
+    ? data.availablePlans.find((p) => p.key === payPlanKey)
+    : null;
+
+  // refresh สรุปหลังส่งสลิป (ปิด modal)
+  async function refresh(): Promise<void> {
+    setData(await fetchSubscription());
+    setPayPlanKey(null);
+  }
 
   return (
     <div className="max-w-5xl space-y-6">
@@ -290,6 +292,10 @@ export function ManageSubscription(): React.JSX.Element {
                 month: 'long',
                 year: 'numeric',
               })}
+              {daysLeft !== null &&
+                (daysLeft >= 0
+                  ? ` (เหลือ ${daysLeft} วัน)`
+                  : ' (หมดอายุแล้ว)')}
             </p>
           )}
         </div>
@@ -300,6 +306,24 @@ export function ManageSubscription(): React.JSX.Element {
           <UsageBar label="เมนู" used={data.usage.menu} limit={data.plan?.maxMenu ?? null} />
         </div>
       </section>
+
+      {/* เตือนใกล้หมดอายุ + ต่ออายุ */}
+      {expiringSoon && !data.requestedPlanKey && (
+        <div className="flex flex-col gap-3 rounded-xl bg-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm font-medium text-amber-800">
+            {daysLeft !== null && daysLeft < 0
+              ? '⚠️ แพ็กเกจหมดอายุแล้ว — ต่ออายุเพื่อใช้งานต่อเนื่อง'
+              : `⚠️ แพ็กเกจใกล้หมดอายุ (เหลือ ${daysLeft} วัน) — ต่ออายุได้เลย`}
+          </p>
+          <button
+            type="button"
+            onClick={() => openPay(currentKey)}
+            className="shrink-0 rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white"
+          >
+            ต่ออายุ
+          </button>
+        </div>
+      )}
 
       {/* คำขออัปเกรดที่รออนุมัติ */}
       {data.requestedPlanKey && (
@@ -324,9 +348,9 @@ export function ManageSubscription(): React.JSX.Element {
       {/* ตารางเทียบแพ็กเกจ */}
       <section>
         <div className="mb-3">
-          <h3 className="text-base font-bold">เลือกแพ็กเกจ</h3>
+          <h3 className="text-base font-bold">เลือก / ต่ออายุแพ็กเกจ</h3>
           <p className="text-xs text-slate-400">
-            กดขอเปลี่ยนแพ็กเกจ แล้วโอนชำระเงิน — ผู้ดูแลระบบจะเปิดให้หลังตรวจสอบ
+            เลือกแพ็กเกจ → โอนเงิน → แนบสลิป — ผู้ดูแลระบบจะตรวจและเปิดให้
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-3">
@@ -338,11 +362,128 @@ export function ManageSubscription(): React.JSX.Element {
               isRecommended={p.key === 'pro'}
               requestedKey={data.requestedPlanKey}
               busy={busy}
-              onRequest={handleRequest}
+              onRequest={openPay}
             />
           ))}
         </div>
       </section>
+
+      {/* modal จ่ายเงิน + แนบสลิป */}
+      {payPlan && (
+        <PaymentModal
+          plan={payPlan}
+          isRenew={payPlan.key === currentKey}
+          platformPromptPay={data.platformPromptPay}
+          onClose={() => setPayPlanKey(null)}
+          onDone={refresh}
+        />
+      )}
+    </div>
+  );
+}
+
+// modal: โชว์ QR PromptPay (ตามราคาแพ็กเกจ) + อัปสลิป → ส่งให้ admin ตรวจ
+function PaymentModal({
+  plan,
+  isRenew,
+  platformPromptPay,
+  onClose,
+  onDone,
+}: {
+  plan: PlanView;
+  isRenew: boolean;
+  platformPromptPay: string | null;
+  onClose: () => void;
+  onDone: () => Promise<void>;
+}): React.JSX.Element {
+  const [slip, setSlip] = useState<File | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit(): Promise<void> {
+    if (!slip) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await submitOnboarding(plan.key, slip);
+      await onDone();
+    } catch (err) {
+      setError(
+        axios.isAxiosError(err) && err.response?.data?.message
+          ? String(err.response.data.message)
+          : 'ส่งสลิปไม่สำเร็จ',
+      );
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-6">
+      <div className="absolute inset-0 bg-black/50" onClick={() => !busy && onClose()} />
+      <div className="relative max-h-[90vh] w-full max-w-sm overflow-y-auto rounded-2xl bg-white p-6">
+        <h3 className="text-lg font-bold">
+          {isRenew ? 'ต่ออายุ' : 'เปลี่ยนเป็น'}แพ็กเกจ {plan.name}
+        </h3>
+        <p className="mt-0.5 text-sm text-slate-500">
+          {baht(plan.priceMonthly)} บาท / เดือน
+        </p>
+
+        {/* QR */}
+        <div className="mt-4 flex flex-col items-center gap-2">
+          {platformPromptPay ? (
+            <>
+              <QRCodeSVG
+                value={promptpayPayload(platformPromptPay, plan.priceMonthly)}
+                size={170}
+              />
+              <p className="text-xs text-slate-500">สแกนจ่ายผ่านแอปธนาคาร (PromptPay)</p>
+            </>
+          ) : (
+            <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+              ยังไม่ได้ตั้งค่าช่องทางชำระเงิน — ติดต่อผู้ดูแลระบบ
+            </p>
+          )}
+        </div>
+
+        {/* สลิป */}
+        <div className="mt-4">
+          <p className="mb-1 text-sm font-semibold">แนบสลิปการโอน</p>
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={(e) => setSlip(e.target.files?.[0] ?? null)}
+            className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-4 file:py-2 file:text-sm file:font-semibold"
+          />
+          {slip && (
+            <img
+              src={URL.createObjectURL(slip)}
+              alt="สลิป"
+              className="mt-2 max-h-40 rounded-lg border border-slate-200"
+            />
+          )}
+        </div>
+
+        {error && <p className="mt-3 text-sm text-rose-600">{error}</p>}
+
+        <div className="mt-5 flex gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={busy}
+            className="flex-1 rounded-lg bg-slate-100 py-2.5 text-sm font-semibold text-slate-700 disabled:opacity-50"
+          >
+            ยกเลิก
+          </button>
+          <button
+            type="button"
+            onClick={submit}
+            disabled={!slip || busy}
+            className="flex-1 rounded-lg bg-indigo-600 py-2.5 text-sm font-semibold text-white disabled:opacity-40"
+          >
+            {busy ? 'กำลังส่ง...' : 'ส่งสลิป'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

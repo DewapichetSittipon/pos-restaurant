@@ -4,6 +4,7 @@ import { logout } from '../services/staffApi';
 import { useStaffStore } from '../store/staffStore';
 import { useNotifyStore } from '../store/notifyStore';
 import { useSubscriptionStore } from '../store/subscriptionStore';
+import { isExpiringSoon } from '../utils/subscriptionExpiry';
 
 export function NavBar() {
   const staff = useStaffStore((s) => s.staff);
@@ -17,6 +18,8 @@ export function NavBar() {
   const featuresLoaded = useSubscriptionStore((s) => s.loaded);
   const planKey = useSubscriptionStore((s) => s.planKey);
   const planName = useSubscriptionStore((s) => s.planName);
+  const periodEnd = useSubscriptionStore((s) => s.currentPeriodEnd);
+  const expiringSoon = isExpiringSoon(periodEnd);
 
   // โหลดฟีเจอร์ของแพ็กเกจครั้งเดียวเมื่อมี staff (ใช้ gate เมนู)
   useEffect(() => {
@@ -101,18 +104,32 @@ export function NavBar() {
         </Link>
       </div>
       <div className="flex items-center gap-3 text-sm">
-        {/* badge แพ็กเกจปัจจุบัน — โปร = ม่วงเด่น, เริ่มต้น = เทา (เฉพาะ OWNER ที่โหลด plan ได้) */}
-        {planName && (
-          <span
-            className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-              planKey === 'pro'
-                ? 'bg-indigo-100 text-indigo-700'
-                : 'bg-slate-100 text-slate-600'
-            }`}
-          >
-            {planName}
-          </span>
-        )}
+        {/* badge แพ็กเกจ — กดดูรายละเอียด/ต่ออายุได้ (OWNER); ใกล้หมด = ส้มเตือน */}
+        {planName &&
+          (showOwnerOnly ? (
+            <Link
+              to="/admin/manage?tab=subscription"
+              title={expiringSoon ? 'แพ็กเกจใกล้หมดอายุ — กดเพื่อต่ออายุ' : 'ดูรายละเอียดแพ็กเกจ'}
+              className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                expiringSoon
+                  ? 'bg-amber-100 text-amber-700'
+                  : planKey === 'pro'
+                    ? 'bg-indigo-100 text-indigo-700'
+                    : 'bg-slate-100 text-slate-600'
+              }`}
+            >
+              {planName}
+              {expiringSoon ? ' ⚠️' : ''}
+            </Link>
+          ) : (
+            <span
+              className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                planKey === 'pro' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600'
+              }`}
+            >
+              {planName}
+            </span>
+          ))}
         <span className="text-slate-500">{staff?.username}</span>
         <button
           type="button"

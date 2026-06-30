@@ -7,6 +7,7 @@ interface SubscriptionState {
   features: string[];
   planKey: string | null; // 'free' (เริ่มต้น) | 'pro'
   planName: string | null; // ชื่อโชว์ เช่น "โปร"
+  currentPeriodEnd: string | null; // วันหมดอายุแพ็กเกจ (ISO) — ใช้เตือนใกล้หมดที่ navbar
   loaded: boolean;
   load: () => Promise<void>;
   hasFeature: (key: string) => boolean;
@@ -17,6 +18,7 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
   features: [],
   planKey: null,
   planName: null,
+  currentPeriodEnd: null,
   loaded: false,
   load: async () => {
     try {
@@ -25,6 +27,7 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
         features: data.plan?.features ?? [],
         planKey: data.plan?.key ?? null,
         planName: data.plan?.name ?? null,
+        currentPeriodEnd: data.currentPeriodEnd,
         loaded: true,
       });
     } catch {
@@ -36,5 +39,12 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
     const { loaded, features } = get();
     return !loaded || features.includes(key);
   },
-  reset: () => set({ features: [], planKey: null, planName: null, loaded: false }),
+  reset: () =>
+    set({
+      features: [],
+      planKey: null,
+      planName: null,
+      currentPeriodEnd: null,
+      loaded: false,
+    }),
 }));

@@ -35,6 +35,7 @@ export interface SubscriptionSummary {
   currentPeriodEnd: string | null;
   trialEndsAt: string | null;
   requestedPlanKey: string | null; // แพ็กเกจที่กดขอไว้ รออนุมัติ (null = ไม่มี)
+  platformPromptPay: string | null; // PromptPay แพลตฟอร์ม (ไว้สร้าง QR ต่ออายุ/เปลี่ยนแพ็กเกจ)
   usage: { staff: number; table: number; menu: number };
   availablePlans: PlanView[]; // แพ็กเกจที่เปิดให้เลือก (สำหรับกดขออัปเกรด)
 }

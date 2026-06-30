@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ManageTables } from '../components/manage/ManageTables';
 import { ManageCategories } from '../components/manage/ManageCategories';
 import { ManageMenus } from '../components/manage/ManageMenus';
@@ -44,9 +45,14 @@ const TABS: { key: Tab; label: string; feature?: string }[] = [
 ];
 
 export function ManagePage() {
-  const [tab, setTab] = useState<Tab>('tables');
   const hasFeature = useSubscriptionStore((s) => s.hasFeature);
   const tabs = TABS.filter((t) => !t.feature || hasFeature(t.feature));
+  // เปิด tab จาก ?tab= (เช่น badge ที่ navbar ลิงก์มา ?tab=subscription)
+  const [searchParams] = useSearchParams();
+  const initialTab = TABS.some((t) => t.key === searchParams.get('tab'))
+    ? (searchParams.get('tab') as Tab)
+    : 'tables';
+  const [tab, setTab] = useState<Tab>(initialTab);
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6">

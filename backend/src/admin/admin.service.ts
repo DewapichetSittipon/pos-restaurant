@@ -158,7 +158,8 @@ export class AdminService {
     });
   }
 
-  // admin เปลี่ยนแพ็กเกจ/รอบจ่ายของร้าน (manual หลังร้านโอน) — อ้าง Plan ด้วย key
+  // admin เปลี่ยน/ต่ออายุแพ็กเกจของร้าน (manual หลังตรวจสลิป) — อ้าง Plan ด้วย key
+  // ไม่ส่ง currentPeriodEnd มา = ต่ออายุ 30 วันนับจากวันหมดเดิม (หรือวันนี้ถ้าหมดแล้ว/ไม่มี)
   async setShopPlan(shopId: number, dto: SetShopPlanDto) {
     const shop = await this.prisma.shop.findUnique({ where: { id: shopId } });
     if (!shop) {
@@ -170,15 +171,30 @@ export class AdminService {
     if (!plan) {
       throw new NotFoundException('ไม่พบแพ็กเกจที่ระบุ');
     }
+    let currentPeriodEnd: Date;
+    if (dto.currentPeriodEnd) {
+      currentPeriodEnd = new Date(dto.currentPeriodEnd);
+    } else {
+      // ต่ออายุ +30 วันจาก max(วันนี้, รอบเดิม) — กันเสียวันที่ยังเหลือ
+      const now = Date.now();
+      const base =
+        shop.currentPeriodEnd && shop.currentPeriodEnd.getTime() > now
+          ? shop.currentPeriodEnd.getTime()
+          : now;
+      currentPeriodEnd = new Date(base + 30 * 24 * 60 * 60 * 1000);
+    }
+
+    // ลบไฟล์สลิปออกจาก storage (best-effort) เมื่ออนุมัติ
+    await this.storage.remove(shop.paymentSlipUrl);
+
     return this.prisma.shop.update({
       where: { id: shopId },
       data: {
         planId: plan.id,
         subscriptionStatus: dto.subscriptionStatus ?? 'active',
-        currentPeriodEnd: dto.currentPeriodEnd
-          ? new Date(dto.currentPeriodEnd)
-          : null,
-        requestedPlanKey: null, // อนุมัติ/เปลี่ยน plan แล้ว เคลียร์คำขอที่ค้าง
+        currentPeriodEnd,
+        requestedPlanKey: null, // อนุมัติ/เปลี่ยน plan แล้ว เคลียร์คำขอ + สลิปที่ค้าง
+        paymentSlipUrl: null,
       },
       include: { plan: { select: { key: true, name: true } } },
     });

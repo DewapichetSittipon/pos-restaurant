@@ -134,6 +134,8 @@ export class SubscriptionService {
       currentPeriodEnd: shop?.currentPeriodEnd ?? null,
       trialEndsAt: shop?.trialEndsAt ?? null,
       requestedPlanKey: shop?.requestedPlanKey ?? null,
+      // PromptPay แพลตฟอร์ม (ไว้สร้าง QR ต่ออายุ/เปลี่ยนแพ็กเกจ) — null = ยังไม่ตั้ง env
+      platformPromptPay: process.env.PLATFORM_PROMPTPAY ?? null,
       usage: { staff, table, menu },
       availablePlans: availablePlans.map((p) => this.planView(p)),
     };
