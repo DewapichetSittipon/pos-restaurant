@@ -11,6 +11,7 @@ import { ManageMembers } from '../components/manage/ManageMembers';
 import { ManagePromotions } from '../components/manage/ManagePromotions';
 import { ManageAudit } from '../components/manage/ManageAudit';
 import { ManageSubscription } from '../components/manage/ManageSubscription';
+import { useSubscriptionStore } from '../store/subscriptionStore';
 
 type Tab =
   | 'tables'
@@ -26,7 +27,8 @@ type Tab =
   | 'audit'
   | 'account';
 
-const TABS: { key: Tab; label: string }[] = [
+// feature = ฟีเจอร์ที่ต้องมีถึงจะเห็น tab (ไม่ใส่ = เห็นทุกแพ็กเกจ)
+const TABS: { key: Tab; label: string; feature?: string }[] = [
   { key: 'tables', label: 'โต๊ะ' },
   { key: 'categories', label: 'หมวดหมู่' },
   { key: 'menus', label: 'เมนู' },
@@ -34,8 +36,8 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'shop', label: 'ข้อมูลร้าน' },
   { key: 'printer', label: 'พิมพ์' },
   { key: 'staff', label: 'พนักงาน' },
-  { key: 'members', label: 'สมาชิก' },
-  { key: 'promotions', label: 'โปรโมชัน' },
+  { key: 'members', label: 'สมาชิก', feature: 'loyalty' },
+  { key: 'promotions', label: 'โปรโมชัน', feature: 'promotions' },
   { key: 'subscription', label: 'แพ็กเกจ' },
   { key: 'audit', label: 'บันทึก' },
   { key: 'account', label: 'บัญชี' },
@@ -43,13 +45,15 @@ const TABS: { key: Tab; label: string }[] = [
 
 export function ManagePage() {
   const [tab, setTab] = useState<Tab>('tables');
+  const hasFeature = useSubscriptionStore((s) => s.hasFeature);
+  const tabs = TABS.filter((t) => !t.feature || hasFeature(t.feature));
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6">
       <h1 className="mb-4 text-2xl font-bold">จัดการร้าน</h1>
 
       <div className="mb-5 flex gap-1 rounded-xl bg-slate-100 p-1">
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <button
             key={t.key}
             type="button"

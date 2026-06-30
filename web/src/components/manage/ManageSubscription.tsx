@@ -34,6 +34,13 @@ const PLAN_TAGLINE: Record<string, string> = {
   business: 'หลายสาขา ไม่จำกัด',
 };
 
+// คำอธิบายว่าแต่ละแพ็กเกจเหมาะกับใคร / ได้อะไร (โชว์ในการ์ด)
+const PLAN_DESC: Record<string, string> = {
+  free: 'สำหรับร้านเล็กที่เพิ่งเริ่ม — ใช้ระบบขายหลัก (สั่ง/เช็คบิล/โต๊ะ/QR) ได้ครบ แต่จำกัดจำนวนพนักงาน/โต๊ะ/เมนู และยังไม่มีฟีเจอร์เสริม',
+  pro: 'สำหรับร้านที่ต้องการเครื่องมือครบ — ปลดล็อกทุกฟีเจอร์ (โปรโมชั่น สมาชิก รายงานย้อนหลัง จองโต๊ะ ฯลฯ) และไม่จำกัดจำนวนพนักงาน/โต๊ะ/เมนู',
+  business: 'สำหรับเจ้าของหลายสาขา — ได้ทุกอย่างในแพ็กเกจโปร และรองรับการจัดการหลายสาขาในบัญชีเดียว',
+};
+
 const baht = (satang: number): string =>
   (satang / 100).toLocaleString('th-TH', { maximumFractionDigits: 0 });
 
@@ -101,6 +108,11 @@ function PlanCard({
             <span className="text-2xl font-bold">ฟรี</span>
           )}
         </p>
+        {PLAN_DESC[plan.key] && (
+          <p className="mt-2 text-xs leading-relaxed text-slate-500">
+            {PLAN_DESC[plan.key]}
+          </p>
+        )}
       </div>
 
       {/* เพดาน resource */}

@@ -10,6 +10,7 @@ import { formatBaht } from '../utils/money';
 import { bangkokToday } from '../utils/datetime';
 import { BillDetailModal } from '../components/BillDetailModal';
 import { RangeReportSection } from '../components/RangeReportSection';
+import { useSubscriptionStore } from '../store/subscriptionStore';
 import type {
   EodReport,
   HourlyReport,
@@ -34,14 +35,19 @@ export function EodReportPage() {
   const [loading, setLoading] = useState(false);
   const [selectedBillId, setSelectedBillId] = useState<number | null>(null);
   const push = useToastStore((s) => s.push);
+  // รายงานย้อนหลัง/รายชั่วโมง/export = ฟีเจอร์แพ็กเกจโปร (รายงานวันนี้ใช้ได้ทุกแพ็กเกจ)
+  const canReportHistory = useSubscriptionStore((s) =>
+    s.hasFeature('report_history'),
+  );
 
   const load = useCallback(() => {
     setLoading(true);
+    // รายงานวันนี้ (eod/top/prep) ใช้ได้ทุกแพ็กเกจ; hourly เฉพาะแพ็กเกจที่รองรับ
     Promise.all([
       fetchEod(date),
       fetchTopMenus(date),
       fetchPrepTimes(date),
-      fetchHourly(date),
+      canReportHistory ? fetchHourly(date) : Promise.resolve(null),
     ])
       .then(([eod, top, prep, hrs]) => {
         setReport(eod);
@@ -51,7 +57,7 @@ export function EodReportPage() {
       })
       .catch(() => push('โหลดรายงานไม่สำเร็จ', 'error'))
       .finally(() => setLoading(false));
-  }, [date, push]);
+  }, [date, push, canReportHistory]);
 
   useEffect(() => load(), [load]);
 
@@ -123,7 +129,7 @@ export function EodReportPage() {
       )}
 
       {/* ยอดขายรายชั่วโมง */}
-      {hourly && hourly.hours.some((h) => h.totalSatang > 0) && (
+      {canReportHistory && hourly && hourly.hours.some((h) => h.totalSatang > 0) && (
         <div className="mb-6 rounded-2xl bg-white p-4 shadow-sm">
           <p className="mb-3 text-sm font-semibold text-slate-500">
             🕒 ยอดขายรายชั่วโมง
@@ -213,10 +219,12 @@ export function EodReportPage() {
         )}
       </div>
 
-      {/* ยอดขายช่วงวันที่ (สัปดาห์/เดือน) */}
-      <div className="mt-6">
-        <RangeReportSection />
-      </div>
+      {/* ยอดขายช่วงวันที่ (สัปดาห์/เดือน) — เฉพาะแพ็กเกจที่รองรับ */}
+      {canReportHistory && (
+        <div className="mt-6">
+          <RangeReportSection />
+        </div>
+      )}
 
       {selectedBillId !== null && (
         <BillDetailModal

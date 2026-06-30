@@ -18,11 +18,15 @@ import { ActiveShopGuard } from '../auth/active-shop.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { CurrentShop } from '../auth/current-shop.decorator';
+import { FeatureGuard } from '../subscription/feature.guard';
+import { RequireFeature } from '../subscription/require-feature.decorator';
+import { PLAN_FEATURES } from '../common/plan-access';
 
-// สมาชิก/แต้มสะสม — OWNER จัดการ, WAITER ค้นหา/เพิ่มตอนเช็คบิล
+// สมาชิก/แต้มสะสม — OWNER จัดการ, WAITER ค้นหา/เพิ่มตอนเช็คบิล (ฟีเจอร์แพ็กเกจโปร)
 @Controller('members')
-@UseGuards(JwtAuthGuard, ActiveShopGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, ActiveShopGuard, RolesGuard, FeatureGuard)
 @Roles('OWNER', 'WAITER')
+@RequireFeature(PLAN_FEATURES.loyalty)
 export class MembersController {
   constructor(private readonly members: MembersService) {}
 

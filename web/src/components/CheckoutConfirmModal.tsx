@@ -13,6 +13,7 @@ import type {
   CheckoutPayload,
   Member,
 } from '../type/staff';
+import { useSubscriptionStore } from '../store/subscriptionStore';
 
 interface CheckoutConfirmModalProps {
   tableNumber: string;
@@ -51,6 +52,11 @@ export function CheckoutConfirmModal({
   const [method, setMethod] = useState<'cash' | 'transfer'>('cash');
   const [receivedInput, setReceivedInput] = useState('');
 
+  // ฟีเจอร์ตามแพ็กเกจ — ซ่อนสมาชิก/โปรถ้า plan ไม่ครอบคลุม (กันเรียก endpoint ที่ถูก gate)
+  const hasFeature = useSubscriptionStore((s) => s.hasFeature);
+  const canLoyalty = hasFeature('loyalty');
+  const canPromotions = hasFeature('promotions');
+
   // สมาชิก/แต้ม
   const [phoneInput, setPhoneInput] = useState('');
   const [member, setMember] = useState<Member | null>(null);
@@ -64,7 +70,7 @@ export function CheckoutConfirmModal({
 
   // ดึงโปรที่ใช้ได้เมื่อเปิด modal/เปลี่ยนสมาชิก (โปรสมาชิก/วันเกิดขึ้นกับ member)
   useEffect(() => {
-    if (billId == null) return;
+    if (billId == null || !canPromotions) return;
     let alive = true;
     fetchApplicablePromotions(billId, member?.id)
       .then((list) => {
@@ -81,7 +87,7 @@ export function CheckoutConfirmModal({
     return () => {
       alive = false;
     };
-  }, [billId, member?.id]);
+  }, [billId, member?.id, canPromotions]);
 
   const promoDiscount =
     promos.find((p) => p.promotion.id === selectedPromoId)?.discount ?? 0;
@@ -234,7 +240,7 @@ export function CheckoutConfirmModal({
         </div>
 
         {/* โปรโมชันที่ใช้ได้ — เลือกได้ทีละอัน (กดซ้ำเพื่อยกเลิก) */}
-        {promos.length > 0 && (
+        {canPromotions && promos.length > 0 && (
           <div className="mt-3 rounded-xl bg-emerald-50 p-3">
             <p className="mb-1.5 text-xs font-semibold text-emerald-700">
               โปรโมชันที่ใช้ได้
@@ -263,8 +269,8 @@ export function CheckoutConfirmModal({
           </div>
         )}
 
-        {/* สมาชิก/แต้มสะสม (เฉพาะร้านที่เปิดระบบ) */}
-        {loyaltyEarnRate > 0 && (
+        {/* สมาชิก/แต้มสะสม (เฉพาะร้านที่เปิดระบบ + แพ็กเกจรองรับ) */}
+        {canLoyalty && loyaltyEarnRate > 0 && (
           <div className="mt-3 rounded-xl bg-amber-50 p-3 text-sm">
             {!member ? (
               <div className="flex gap-2">

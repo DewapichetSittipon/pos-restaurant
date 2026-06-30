@@ -3,12 +3,23 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { logout } from '../services/staffApi';
 import { useStaffStore } from '../store/staffStore';
 import { useNotifyStore } from '../store/notifyStore';
+import { useSubscriptionStore } from '../store/subscriptionStore';
 
 export function NavBar() {
   const staff = useStaffStore((s) => s.staff);
   const setStaff = useStaffStore((s) => s.setStaff);
   const navigate = useNavigate();
   const { pathname } = useLocation();
+
+  const loadFeatures = useSubscriptionStore((s) => s.load);
+  const resetFeatures = useSubscriptionStore((s) => s.reset);
+  const hasFeature = useSubscriptionStore((s) => s.hasFeature);
+  const featuresLoaded = useSubscriptionStore((s) => s.loaded);
+
+  // โหลดฟีเจอร์ของแพ็กเกจครั้งเดียวเมื่อมี staff (ใช้ gate เมนู)
+  useEffect(() => {
+    if (staff && !featuresLoaded) void loadFeatures();
+  }, [staff, featuresLoaded, loadFeatures]);
 
   const serviceCount = useNotifyStore((s) => s.serviceCount);
   const orderCount = useNotifyStore((s) => s.orderCount);
@@ -25,6 +36,7 @@ export function NavBar() {
   async function handleLogout(): Promise<void> {
     await logout();
     setStaff(null);
+    resetFeatures();
     navigate('/login', { replace: true });
   }
 
@@ -54,12 +66,12 @@ export function NavBar() {
             <NotiDot count={orderCount} />
           </Link>
         )}
-        {showTables && (
+        {showTables && hasFeature('shifts') && (
           <Link to="/admin/shift" className={linkClass('/admin/shift')}>
             กะ/ลิ้นชัก
           </Link>
         )}
-        {showTables && (
+        {showTables && hasFeature('reservations') && (
           <Link
             to="/admin/reservations"
             className={linkClass('/admin/reservations')}

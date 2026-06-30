@@ -1,6 +1,19 @@
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import { fetchShop, updateShop } from '../../services/manageApi';
+import { useSubscriptionStore } from '../../store/subscriptionStore';
+
+// ป้ายแจ้งว่าต้องอัปเกรดแพ็กเกจถึงใช้ส่วนนี้ได้
+function UpgradeLock({ title }: { title: string }): React.JSX.Element {
+  return (
+    <div className="border-t border-slate-100 pt-3">
+      <h3 className="text-sm font-bold text-slate-400">{title}</h3>
+      <p className="mt-1 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-400">
+        🔒 ฟีเจอร์นี้ใช้ได้ในแพ็กเกจโปรขึ้นไป — ดูแท็บ “แพ็กเกจ” เพื่ออัปเกรด
+      </p>
+    </div>
+  );
+}
 
 function errMsg(err: unknown, fallback: string): string {
   return axios.isAxiosError(err) && err.response?.data?.message
@@ -45,6 +58,7 @@ function bpToPercent(bp: number): string {
 
 export function ManageShop() {
   const [form, setForm] = useState<Form>(EMPTY);
+  const hasFeature = useSubscriptionStore((s) => s.hasFeature);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -168,6 +182,9 @@ export function ManageShop() {
           />
         </Field>
 
+        {!hasFeature('vat') ? (
+          <UpgradeLock title="ภาษี & เซอร์วิสชาร์จ" />
+        ) : (
         <div className="border-t border-slate-100 pt-3">
           <h3 className="text-sm font-bold text-slate-700">ภาษี & เซอร์วิสชาร์จ</h3>
           <p className="mt-0.5 mb-3 text-xs text-slate-400">
@@ -216,7 +233,11 @@ export function ManageShop() {
             </span>
           </label>
         </div>
+        )}
 
+        {!hasFeature('loyalty') ? (
+          <UpgradeLock title="สมาชิก / แต้มสะสม" />
+        ) : (
         <div className="border-t border-slate-100 pt-3">
           <h3 className="text-sm font-bold text-slate-700">สมาชิก / แต้มสะสม</h3>
           <p className="mt-0.5 mb-3 text-xs text-slate-400">
@@ -235,6 +256,7 @@ export function ManageShop() {
             />
           </Field>
         </div>
+        )}
 
         {error && <p className="text-sm text-rose-600">{error}</p>}
 

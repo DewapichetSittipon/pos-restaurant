@@ -10,11 +10,15 @@ import { Roles } from '../auth/roles.decorator';
 import { CurrentShop } from '../auth/current-shop.decorator';
 import { CurrentStaff } from '../auth/current-staff.decorator';
 import type { JwtPayload } from '../auth/auth.types';
+import { FeatureGuard } from '../subscription/feature.guard';
+import { RequireFeature } from '../subscription/require-feature.decorator';
+import { PLAN_FEATURES } from '../common/plan-access';
 
-// กะ/เงินลิ้นชัก — OWNER กับ WAITER (คนที่ดูแลเงินสด) เปิด/ปิด/ดูได้; KITCHEN ไม่เกี่ยว
+// กะ/เงินลิ้นชัก — OWNER กับ WAITER (คนที่ดูแลเงินสด) เปิด/ปิด/ดูได้; KITCHEN ไม่เกี่ยว (ฟีเจอร์แพ็กเกจโปร)
 @Controller('shifts')
-@UseGuards(JwtAuthGuard, ActiveShopGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, ActiveShopGuard, RolesGuard, FeatureGuard)
 @Roles('OWNER', 'WAITER')
+@RequireFeature(PLAN_FEATURES.shifts)
 export class ShiftsController {
   constructor(
     private readonly shifts: ShiftsService,

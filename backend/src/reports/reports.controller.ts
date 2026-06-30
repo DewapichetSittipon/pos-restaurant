@@ -20,10 +20,13 @@ import { Roles } from '../auth/roles.decorator';
 import { CurrentShop } from '../auth/current-shop.decorator';
 import { CurrentStaff } from '../auth/current-staff.decorator';
 import type { JwtPayload } from '../auth/auth.types';
+import { FeatureGuard } from '../subscription/feature.guard';
+import { RequireFeature } from '../subscription/require-feature.decorator';
+import { PLAN_FEATURES } from '../common/plan-access';
 
 // ยอดขาย/รายงาน — เฉพาะเจ้าของร้าน
 @Controller('reports')
-@UseGuards(JwtAuthGuard, ActiveShopGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, ActiveShopGuard, RolesGuard, FeatureGuard)
 @Roles('OWNER')
 export class ReportsController {
   constructor(
@@ -45,12 +48,14 @@ export class ReportsController {
 
   // GET /api/reports/hourly?date=YYYY-MM-DD — ยอดขายรายชั่วโมง
   @Get('hourly')
+  @RequireFeature(PLAN_FEATURES.reportHistory)
   hourly(@CurrentShop() shopId: number, @Query('date') date?: string) {
     return this.reports.hourly(shopId, date);
   }
 
   // GET /api/reports/range?from=YYYY-MM-DD&to=YYYY-MM-DD — ยอดขายรายวันในช่วง
   @Get('range')
+  @RequireFeature(PLAN_FEATURES.reportHistory)
   range(
     @CurrentShop() shopId: number,
     @Query('from') from: string,
@@ -61,6 +66,7 @@ export class ReportsController {
 
   // GET /api/reports/export?from=...&to=... — ดาวน์โหลด CSV บิลในช่วง
   @Get('export')
+  @RequireFeature(PLAN_FEATURES.reportHistory)
   async export(
     @CurrentShop() shopId: number,
     @Query('from') from: string,

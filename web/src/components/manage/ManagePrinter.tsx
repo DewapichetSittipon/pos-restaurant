@@ -14,10 +14,14 @@ import {
   sendToPrinter,
 } from '../../utils/escpos';
 import { renderTestCanvas } from '../../utils/receiptCanvas';
+import { useSubscriptionStore } from '../../store/subscriptionStore';
 
 // ตั้งค่าการพิมพ์ของ "อุปกรณ์นี้" (เก็บใน localStorage) — ไม่ผูกกับร้าน/บัญชี
 export function ManagePrinter() {
-  const supported = isWebUsbSupported();
+  // พิมพ์ครัวตรง ESC/POS = ฟีเจอร์แพ็กเกจโปร (พิมพ์ผ่านเบราว์เซอร์ใช้ได้ทุกแพ็กเกจ)
+  const canThermal = useSubscriptionStore((s) => s.hasFeature('escpos_print'));
+  const webUsb = isWebUsbSupported();
+  const supported = webUsb && canThermal; // เปิดโหมด thermal ได้เมื่อเบราว์เซอร์รองรับ + แพ็กเกจปลดล็อก
   const [mode, setMode] = useState<PrintMode>(getPrintMode());
   const [dots, setDots] = useState<number>(getPrinterDots());
   const [connected, setConnected] = useState(false);
@@ -119,15 +123,26 @@ export function ManagePrinter() {
             <span className="block text-xs text-slate-500">
               พิมพ์ทันทีไม่ผ่าน dialog — รองรับ Chrome/Edge บนคอม/Android เท่านั้น
             </span>
+            {!canThermal && (
+              <span className="mt-1 block text-xs font-semibold text-amber-700">
+                🔒 ใช้ได้ในแพ็กเกจโปรขึ้นไป
+              </span>
+            )}
           </span>
         </label>
       </div>
 
-      {!supported && (
+      {!canThermal ? (
         <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
-          เบราว์เซอร์นี้ไม่รองรับ WebUSB — ใช้ได้เฉพาะการพิมพ์ผ่านเบราว์เซอร์
-          (บน iPhone/iPad/Safari จะไม่มีโหมด thermal)
+          พิมพ์ครัวตรง ESC/POS เป็นฟีเจอร์แพ็กเกจโปร — ดูแท็บ “แพ็กเกจ” เพื่ออัปเกรด
         </p>
+      ) : (
+        !webUsb && (
+          <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+            เบราว์เซอร์นี้ไม่รองรับ WebUSB — ใช้ได้เฉพาะการพิมพ์ผ่านเบราว์เซอร์
+            (บน iPhone/iPad/Safari จะไม่มีโหมด thermal)
+          </p>
+        )
       )}
 
       {/* ตั้งค่าเครื่อง thermal */}
