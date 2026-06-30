@@ -10,6 +10,7 @@ import {
 import { formatBaht } from '../../utils/money';
 import { formatComboItems } from '../../utils/menu';
 import type { Category, MenuItem } from '../../type/domain';
+import { useSubscriptionStore } from '../../store/subscriptionStore';
 
 function errMsg(err: unknown, fallback: string): string {
   return axios.isAxiosError(err) && err.response?.data?.message
@@ -26,6 +27,7 @@ interface CompDraft {
 const EMPTY_NEW = { categoryId: 0, name: '', nameEn: '', nameZh: '', priceBaht: '' };
 
 export function ManageCombos() {
+  const canI18n = useSubscriptionStore((s) => s.hasFeature('i18n'));
   const [categories, setCategories] = useState<Category[]>([]);
   const [form, setForm] = useState(EMPTY_NEW);
   const [newComps, setNewComps] = useState<CompDraft[]>([]);
@@ -175,18 +177,22 @@ export function ManageCombos() {
               placeholder="ราคา (บาท)"
               className="rounded-lg border border-slate-300 px-3 py-2.5 sm:col-span-3"
             />
-            <input
-              value={form.nameEn}
-              onChange={(e) => setForm((f) => ({ ...f, nameEn: e.target.value }))}
-              placeholder="ชื่อ EN (ถ้ามี)"
-              className="rounded-lg border border-slate-200 px-3 py-2 text-sm sm:col-span-6"
-            />
-            <input
-              value={form.nameZh}
-              onChange={(e) => setForm((f) => ({ ...f, nameZh: e.target.value }))}
-              placeholder="ชื่อ 中文 (ถ้ามี)"
-              className="rounded-lg border border-slate-200 px-3 py-2 text-sm sm:col-span-6"
-            />
+            {canI18n && (
+              <>
+                <input
+                  value={form.nameEn}
+                  onChange={(e) => setForm((f) => ({ ...f, nameEn: e.target.value }))}
+                  placeholder="ชื่อ EN (ถ้ามี)"
+                  className="rounded-lg border border-slate-200 px-3 py-2 text-sm sm:col-span-6"
+                />
+                <input
+                  value={form.nameZh}
+                  onChange={(e) => setForm((f) => ({ ...f, nameZh: e.target.value }))}
+                  placeholder="ชื่อ 中文 (ถ้ามี)"
+                  className="rounded-lg border border-slate-200 px-3 py-2 text-sm sm:col-span-6"
+                />
+              </>
+            )}
           </div>
 
           <ComponentPicker
@@ -225,18 +231,22 @@ export function ManageCombos() {
                           placeholder="ชื่อ (ไทย)"
                           className="min-w-0 flex-1 rounded border border-slate-300 px-2 py-1.5"
                         />
-                        <input
-                          value={edit.nameEn}
-                          onChange={(e) => setEdit((s) => ({ ...s, nameEn: e.target.value }))}
-                          placeholder="EN"
-                          className="w-24 rounded border border-slate-200 px-2 py-1.5 text-sm"
-                        />
-                        <input
-                          value={edit.nameZh}
-                          onChange={(e) => setEdit((s) => ({ ...s, nameZh: e.target.value }))}
-                          placeholder="中文"
-                          className="w-24 rounded border border-slate-200 px-2 py-1.5 text-sm"
-                        />
+                        {canI18n && (
+                          <>
+                            <input
+                              value={edit.nameEn}
+                              onChange={(e) => setEdit((s) => ({ ...s, nameEn: e.target.value }))}
+                              placeholder="EN"
+                              className="w-24 rounded border border-slate-200 px-2 py-1.5 text-sm"
+                            />
+                            <input
+                              value={edit.nameZh}
+                              onChange={(e) => setEdit((s) => ({ ...s, nameZh: e.target.value }))}
+                              placeholder="中文"
+                              className="w-24 rounded border border-slate-200 px-2 py-1.5 text-sm"
+                            />
+                          </>
+                        )}
                         <input
                           value={edit.priceBaht}
                           onChange={(e) =>

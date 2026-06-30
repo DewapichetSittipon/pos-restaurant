@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { MenuItem } from '../../type/domain';
 import type { ModifierGroupInput } from '../../type/manage';
 import { setMenuModifiers } from '../../services/manageApi';
+import { useSubscriptionStore } from '../../store/subscriptionStore';
 
 // editor state ใช้ราคาเป็น "บาท" (string) เพื่อกรอกง่าย แล้วแปลงเป็นสตางค์ตอนบันทึก
 interface OptDraft {
@@ -44,6 +45,7 @@ interface Props {
 }
 
 export function ManageModifiers({ menu, onClose, onSaved }: Props) {
+  const canI18n = useSubscriptionStore((s) => s.hasFeature('i18n'));
   const [groups, setGroups] = useState<GroupDraft[]>(() => toDrafts(menu));
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -158,20 +160,22 @@ export function ManageModifiers({ menu, onClose, onSaved }: Props) {
                 </button>
               </div>
 
-              <div className="mt-1.5 flex gap-2">
-                <input
-                  value={g.nameEn}
-                  onChange={(e) => patchGroup(gi, { nameEn: e.target.value })}
-                  placeholder="ชื่อกลุ่ม EN (ถ้ามี)"
-                  className="flex-1 rounded-lg border border-slate-200 px-2 py-1 text-xs"
-                />
-                <input
-                  value={g.nameZh}
-                  onChange={(e) => patchGroup(gi, { nameZh: e.target.value })}
-                  placeholder="ชื่อกลุ่ม 中文 (ถ้ามี)"
-                  className="flex-1 rounded-lg border border-slate-200 px-2 py-1 text-xs"
-                />
-              </div>
+              {canI18n && (
+                <div className="mt-1.5 flex gap-2">
+                  <input
+                    value={g.nameEn}
+                    onChange={(e) => patchGroup(gi, { nameEn: e.target.value })}
+                    placeholder="ชื่อกลุ่ม EN (ถ้ามี)"
+                    className="flex-1 rounded-lg border border-slate-200 px-2 py-1 text-xs"
+                  />
+                  <input
+                    value={g.nameZh}
+                    onChange={(e) => patchGroup(gi, { nameZh: e.target.value })}
+                    placeholder="ชื่อกลุ่ม 中文 (ถ้ามี)"
+                    className="flex-1 rounded-lg border border-slate-200 px-2 py-1 text-xs"
+                  />
+                </div>
+              )}
 
               <div className="mt-2 flex items-center gap-3 text-xs text-slate-500">
                 <label className="flex items-center gap-1">
@@ -235,20 +239,22 @@ export function ManageModifiers({ menu, onClose, onSaved }: Props) {
                         ✕
                       </button>
                     </div>
-                    <div className="mt-1 flex gap-2">
-                      <input
-                        value={o.nameEn}
-                        onChange={(e) => patchOpt(gi, oi, { nameEn: e.target.value })}
-                        placeholder="EN (ถ้ามี)"
-                        className="flex-1 rounded border border-slate-200 px-2 py-0.5 text-xs"
-                      />
-                      <input
-                        value={o.nameZh}
-                        onChange={(e) => patchOpt(gi, oi, { nameZh: e.target.value })}
-                        placeholder="中文 (ถ้ามี)"
-                        className="flex-1 rounded border border-slate-200 px-2 py-0.5 text-xs"
-                      />
-                    </div>
+                    {canI18n && (
+                      <div className="mt-1 flex gap-2">
+                        <input
+                          value={o.nameEn}
+                          onChange={(e) => patchOpt(gi, oi, { nameEn: e.target.value })}
+                          placeholder="EN (ถ้ามี)"
+                          className="flex-1 rounded border border-slate-200 px-2 py-0.5 text-xs"
+                        />
+                        <input
+                          value={o.nameZh}
+                          onChange={(e) => patchOpt(gi, oi, { nameZh: e.target.value })}
+                          placeholder="中文 (ถ้ามี)"
+                          className="flex-1 rounded border border-slate-200 px-2 py-0.5 text-xs"
+                        />
+                      </div>
+                    )}
                   </div>
                 ))}
                 <button

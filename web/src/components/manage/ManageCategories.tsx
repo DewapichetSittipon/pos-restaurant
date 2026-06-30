@@ -7,6 +7,7 @@ import {
   renameCategory,
 } from '../../services/manageApi';
 import type { CategoryRow } from '../../type/manage';
+import { useSubscriptionStore } from '../../store/subscriptionStore';
 
 function errMsg(err: unknown, fallback: string): string {
   return axios.isAxiosError(err) && err.response?.data?.message
@@ -15,6 +16,7 @@ function errMsg(err: unknown, fallback: string): string {
 }
 
 export function ManageCategories() {
+  const canI18n = useSubscriptionStore((s) => s.hasFeature('i18n'));
   const [rows, setRows] = useState<CategoryRow[]>([]);
   const [name, setName] = useState('');
   const [nameEn, setNameEn] = useState('');
@@ -104,20 +106,22 @@ export function ManageCategories() {
             เพิ่มหมวด
           </button>
         </div>
-        <div className="flex gap-2">
-          <input
-            value={nameEn}
-            onChange={(e) => setNameEn(e.target.value)}
-            placeholder="ชื่อ EN (ถ้ามี) เช่น Drinks"
-            className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
-          />
-          <input
-            value={nameZh}
-            onChange={(e) => setNameZh(e.target.value)}
-            placeholder="ชื่อ 中文 (ถ้ามี) เช่น 饮料"
-            className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
-          />
-        </div>
+        {canI18n && (
+          <div className="flex gap-2">
+            <input
+              value={nameEn}
+              onChange={(e) => setNameEn(e.target.value)}
+              placeholder="ชื่อ EN (ถ้ามี) เช่น Drinks"
+              className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
+            />
+            <input
+              value={nameZh}
+              onChange={(e) => setNameZh(e.target.value)}
+              placeholder="ชื่อ 中文 (ถ้ามี) เช่น 饮料"
+              className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
+            />
+          </div>
+        )}
       </form>
 
       {error && <p className="mb-3 text-sm text-rose-600">{error}</p>}
@@ -136,20 +140,22 @@ export function ManageCategories() {
                   placeholder="ชื่อหมวด (ไทย)"
                   className="w-full rounded-lg border border-slate-300 px-2 py-1.5"
                 />
-                <div className="flex gap-2">
-                  <input
-                    value={editNameEn}
-                    onChange={(e) => setEditNameEn(e.target.value)}
-                    placeholder="ชื่อ EN"
-                    className="flex-1 rounded-lg border border-slate-200 px-2 py-1.5 text-sm"
-                  />
-                  <input
-                    value={editNameZh}
-                    onChange={(e) => setEditNameZh(e.target.value)}
-                    placeholder="ชื่อ 中文"
-                    className="flex-1 rounded-lg border border-slate-200 px-2 py-1.5 text-sm"
-                  />
-                </div>
+                {canI18n && (
+                  <div className="flex gap-2">
+                    <input
+                      value={editNameEn}
+                      onChange={(e) => setEditNameEn(e.target.value)}
+                      placeholder="ชื่อ EN"
+                      className="flex-1 rounded-lg border border-slate-200 px-2 py-1.5 text-sm"
+                    />
+                    <input
+                      value={editNameZh}
+                      onChange={(e) => setEditNameZh(e.target.value)}
+                      placeholder="ชื่อ 中文"
+                      className="flex-1 rounded-lg border border-slate-200 px-2 py-1.5 text-sm"
+                    />
+                  </div>
+                )}
                 <div className="flex gap-3">
                   <button
                     type="button"
