@@ -15,6 +15,8 @@ export function NavBar() {
   const resetFeatures = useSubscriptionStore((s) => s.reset);
   const hasFeature = useSubscriptionStore((s) => s.hasFeature);
   const featuresLoaded = useSubscriptionStore((s) => s.loaded);
+  const planKey = useSubscriptionStore((s) => s.planKey);
+  const planName = useSubscriptionStore((s) => s.planName);
 
   // โหลดฟีเจอร์ของแพ็กเกจครั้งเดียวเมื่อมี staff (ใช้ gate เมนู)
   useEffect(() => {
@@ -99,6 +101,18 @@ export function NavBar() {
         </Link>
       </div>
       <div className="flex items-center gap-3 text-sm">
+        {/* badge แพ็กเกจปัจจุบัน — โปร = ม่วงเด่น, เริ่มต้น = เทา (เฉพาะ OWNER ที่โหลด plan ได้) */}
+        {planName && (
+          <span
+            className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+              planKey === 'pro'
+                ? 'bg-indigo-100 text-indigo-700'
+                : 'bg-slate-100 text-slate-600'
+            }`}
+          >
+            {planName}
+          </span>
+        )}
         <span className="text-slate-500">{staff?.username}</span>
         <button
           type="button"

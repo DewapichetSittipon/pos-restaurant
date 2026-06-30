@@ -5,6 +5,8 @@ import { fetchSubscription } from '../services/manageApi';
 // key ตรงกับ backend common/plan-access.ts
 interface SubscriptionState {
   features: string[];
+  planKey: string | null; // 'free' (เริ่มต้น) | 'pro'
+  planName: string | null; // ชื่อโชว์ เช่น "โปร"
   loaded: boolean;
   load: () => Promise<void>;
   hasFeature: (key: string) => boolean;
@@ -13,11 +15,18 @@ interface SubscriptionState {
 
 export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
   features: [],
+  planKey: null,
+  planName: null,
   loaded: false,
   load: async () => {
     try {
       const data = await fetchSubscription();
-      set({ features: data.plan?.features ?? [], loaded: true });
+      set({
+        features: data.plan?.features ?? [],
+        planKey: data.plan?.key ?? null,
+        planName: data.plan?.name ?? null,
+        loaded: true,
+      });
     } catch {
       // เงียบ — บาง role (KITCHEN) เรียก endpoint นี้ไม่ได้ ไม่ควร block UI
     }
@@ -27,5 +36,5 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
     const { loaded, features } = get();
     return !loaded || features.includes(key);
   },
-  reset: () => set({ features: [], loaded: false }),
+  reset: () => set({ features: [], planKey: null, planName: null, loaded: false }),
 }));
