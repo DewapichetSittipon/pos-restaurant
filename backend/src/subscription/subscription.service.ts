@@ -1,6 +1,13 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import type { Plan } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationService } from '../notifications/notification.service';
 import {
   canAddResource,
   FREE_PLAN_FALLBACK,
@@ -30,7 +37,10 @@ function paymentRequired(message: string): HttpException {
 
 @Injectable()
 export class SubscriptionService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notify: NotificationService,
+  ) {}
 
   // plan ที่ผูกกับร้าน (เต็ม record) — null planId → plan ฟรีจาก DB; ถ้าไม่เจอเลยใช้ fallback
   async getShopPlan(shopId: number): Promise<Plan | null> {
@@ -83,7 +93,20 @@ export class SubscriptionService {
     }
   }
 
-  // สรุป subscription ของร้าน (สำหรับฝั่ง web ใช้ซ่อน/ล็อกฟีเจอร์ + โชว์โควต้าที่ใช้ไป)
+  // โครงข้อมูล plan ที่ส่งให้ฝั่ง web (ตัด field ที่ไม่ใช้ออก)
+  private planView(plan: Plan) {
+    return {
+      key: plan.key,
+      name: plan.name,
+      priceMonthly: plan.priceMonthly,
+      features: plan.features,
+      maxStaff: plan.maxStaff,
+      maxTable: plan.maxTable,
+      maxMenu: plan.maxMenu,
+    };
+  }
+
+  // สรุป subscription ของร้าน (ฝั่ง web ใช้ซ่อน/ล็อกฟีเจอร์ + โชว์โควต้า + ให้ร้านกดขออัปเกรด)
   async getSummary(shopId: number) {
     const shop = await this.prisma.shop.findUnique({
       where: { id: shopId },
@@ -91,30 +114,67 @@ export class SubscriptionService {
         subscriptionStatus: true,
         currentPeriodEnd: true,
         trialEndsAt: true,
+        requestedPlanKey: true,
         plan: true,
       },
     });
     const plan = shop?.plan ?? (await this.getShopPlan(shopId));
-    const [staff, table, menu] = await Promise.all([
+    const [staff, table, menu, availablePlans] = await Promise.all([
       this.countResource(shopId, 'staff'),
       this.countResource(shopId, 'table'),
       this.countResource(shopId, 'menu'),
+      this.prisma.plan.findMany({
+        where: { isActive: true },
+        orderBy: { sortOrder: 'asc' },
+      }),
     ]);
     return {
-      plan: plan && {
-        key: plan.key,
-        name: plan.name,
-        priceMonthly: plan.priceMonthly,
-        features: plan.features,
-        maxStaff: plan.maxStaff,
-        maxTable: plan.maxTable,
-        maxMenu: plan.maxMenu,
-      },
+      plan: plan && this.planView(plan),
       subscriptionStatus: shop?.subscriptionStatus ?? null,
       currentPeriodEnd: shop?.currentPeriodEnd ?? null,
       trialEndsAt: shop?.trialEndsAt ?? null,
+      requestedPlanKey: shop?.requestedPlanKey ?? null,
       usage: { staff, table, menu },
+      availablePlans: availablePlans.map((p) => this.planView(p)),
     };
+  }
+
+  // ร้านกด "ขออัปเกรด" — บันทึกคำขอ (รออนุมัติ) + แจ้ง admin. การจ่ายเงินยัง manual
+  async requestPlan(shopId: number, planKey: string) {
+    const shop = await this.prisma.shop.findUnique({
+      where: { id: shopId },
+      include: { plan: true },
+    });
+    if (!shop) {
+      throw new NotFoundException('ไม่พบร้าน');
+    }
+    const plan = await this.prisma.plan.findUnique({ where: { key: planKey } });
+    if (!plan || !plan.isActive) {
+      throw new NotFoundException('ไม่พบแพ็กเกจที่ระบุ');
+    }
+    const currentKey = shop.plan?.key ?? FREE_PLAN_KEY;
+    if (plan.key === currentKey) {
+      throw new BadRequestException('ร้านใช้แพ็กเกจนี้อยู่แล้ว');
+    }
+    await this.prisma.shop.update({
+      where: { id: shopId },
+      data: { requestedPlanKey: plan.key },
+    });
+    // แจ้งผู้ดูแลแพลตฟอร์ม (best-effort ไม่ block คำขอ)
+    void this.notify.notify(
+      '⬆️ ร้านขออัปเกรดแพ็กเกจ',
+      `ร้าน "${shop.name}" ขอเปลี่ยนเป็นแพ็กเกจ "${plan.name}" — อนุมัติได้ในหน้า /platform`,
+    );
+    return this.getSummary(shopId);
+  }
+
+  // ร้านยกเลิกคำขอที่ยังรออนุมัติ
+  async cancelPlanRequest(shopId: number) {
+    await this.prisma.shop.update({
+      where: { id: shopId },
+      data: { requestedPlanKey: null },
+    });
+    return this.getSummary(shopId);
   }
 
   private countResource(

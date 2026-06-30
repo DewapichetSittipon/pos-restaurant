@@ -12,17 +12,20 @@ export interface ShopInfo {
   loyaltyEarnRate: number; // แต้มต่อ 100 บาท; 0 = ปิดระบบสมาชิก
 }
 
+// แพ็กเกจในมุมมองร้าน (subset — ไม่มี id/isActive/sortOrder)
+export interface PlanView {
+  key: string;
+  name: string;
+  priceMonthly: number; // สตางค์/เดือน
+  features: string[]; // feature key ที่ปลดล็อก
+  maxStaff: number | null; // null = ไม่จำกัด
+  maxTable: number | null;
+  maxMenu: number | null;
+}
+
 // สรุปแพ็กเกจ + โควต้าที่ใช้ไปของร้าน (จาก GET /shop/subscription)
 export interface SubscriptionSummary {
-  plan: {
-    key: string;
-    name: string;
-    priceMonthly: number; // สตางค์/เดือน
-    features: string[]; // feature key ที่ปลดล็อก
-    maxStaff: number | null; // null = ไม่จำกัด
-    maxTable: number | null;
-    maxMenu: number | null;
-  } | null;
+  plan: PlanView | null;
   subscriptionStatus:
     | 'trialing'
     | 'active'
@@ -31,7 +34,9 @@ export interface SubscriptionSummary {
     | null;
   currentPeriodEnd: string | null;
   trialEndsAt: string | null;
+  requestedPlanKey: string | null; // แพ็กเกจที่กดขอไว้ รออนุมัติ (null = ไม่มี)
   usage: { staff: number; table: number; menu: number };
+  availablePlans: PlanView[]; // แพ็กเกจที่เปิดให้เลือก (สำหรับกดขออัปเกรด)
 }
 
 // payload ตอนบันทึก (PATCH /shop) — ช่องว่างฝั่ง backend จะแปลงเป็น null

@@ -61,6 +61,11 @@ export async function setShopPlan(
   await api.post(`/admin/shops/${shopId}/plan`, { planKey, currentPeriodEnd });
 }
 
+// admin ปฏิเสธคำขออัปเกรดของร้าน (เคลียร์คำขอ ไม่เปลี่ยน plan)
+export async function rejectPlanRequest(shopId: number): Promise<void> {
+  await api.delete(`/admin/shops/${shopId}/plan-request`);
+}
+
 // ----- สมัครเปิดร้านเอง -----
 
 // public — ร้านสมัครเอง (ไม่ต้อง login) สร้างร้านสถานะ pending

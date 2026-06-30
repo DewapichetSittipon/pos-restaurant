@@ -146,6 +146,7 @@ export class AdminService {
       planName: s.plan?.name ?? null,
       subscriptionStatus: s.subscriptionStatus,
       currentPeriodEnd: s.currentPeriodEnd,
+      requestedPlanKey: s.requestedPlanKey, // คำขออัปเกรดที่รออนุมัติ (null = ไม่มี)
     }));
   }
 
@@ -176,8 +177,21 @@ export class AdminService {
         currentPeriodEnd: dto.currentPeriodEnd
           ? new Date(dto.currentPeriodEnd)
           : null,
+        requestedPlanKey: null, // อนุมัติ/เปลี่ยน plan แล้ว เคลียร์คำขอที่ค้าง
       },
       include: { plan: { select: { key: true, name: true } } },
+    });
+  }
+
+  // ปฏิเสธคำขออัปเกรดของร้าน (เคลียร์คำขอ ไม่เปลี่ยน plan)
+  async rejectPlanRequest(shopId: number) {
+    const shop = await this.prisma.shop.findUnique({ where: { id: shopId } });
+    if (!shop) {
+      throw new NotFoundException('ไม่พบร้าน');
+    }
+    return this.prisma.shop.update({
+      where: { id: shopId },
+      data: { requestedPlanKey: null },
     });
   }
 

@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react';
-import { fetchSubscription } from '../../services/manageApi';
+import axios from 'axios';
+import {
+  cancelPlanRequest,
+  fetchSubscription,
+  requestPlanUpgrade,
+} from '../../services/manageApi';
 import type { SubscriptionSummary } from '../../type/manage';
 
 // feature key (ตรงกับ backend common/plan-access.ts) -> ป้ายภาษาไทย + ลำดับแสดง
@@ -49,6 +54,7 @@ function UsageRow({
 export function ManageSubscription(): React.JSX.Element {
   const [data, setData] = useState<SubscriptionSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     fetchSubscription()
@@ -56,7 +62,35 @@ export function ManageSubscription(): React.JSX.Element {
       .catch(() => setError('โหลดข้อมูลแพ็กเกจไม่สำเร็จ'));
   }, []);
 
-  if (error) {
+  async function handleRequest(planKey: string): Promise<void> {
+    setBusy(true);
+    setError(null);
+    try {
+      setData(await requestPlanUpgrade(planKey));
+    } catch (err) {
+      setError(
+        axios.isAxiosError(err) && err.response?.data?.message
+          ? String(err.response.data.message)
+          : 'ส่งคำขอไม่สำเร็จ',
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleCancelRequest(): Promise<void> {
+    setBusy(true);
+    setError(null);
+    try {
+      setData(await cancelPlanRequest());
+    } catch {
+      setError('ยกเลิกคำขอไม่สำเร็จ');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (error && !data) {
     return <p className="text-sm text-rose-600">{error}</p>;
   }
   if (!data) {
@@ -64,6 +98,12 @@ export function ManageSubscription(): React.JSX.Element {
   }
 
   const planFeatures = data.plan?.features ?? [];
+  const currentKey = data.plan?.key ?? 'free';
+  // แพ็กเกจอื่นที่ขออัปเกรดได้ (ไม่ใช่อันปัจจุบัน)
+  const otherPlans = data.availablePlans.filter((p) => p.key !== currentKey);
+  const requestedPlan = data.requestedPlanKey
+    ? data.availablePlans.find((p) => p.key === data.requestedPlanKey)
+    : null;
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -95,10 +135,69 @@ export function ManageSubscription(): React.JSX.Element {
             })}
           </p>
         )}
-        <p className="mt-3 text-xs text-slate-400">
-          ต้องการเปลี่ยนแพ็กเกจ ติดต่อผู้ดูแลระบบ
-        </p>
+
+        {/* คำขออัปเกรดที่รออนุมัติ */}
+        {data.requestedPlanKey && (
+          <div className="mt-4 flex items-center justify-between gap-3 rounded-xl bg-amber-50 px-4 py-3">
+            <p className="text-sm text-amber-800">
+              ส่งคำขอเปลี่ยนเป็น{' '}
+              <b>{requestedPlan?.name ?? data.requestedPlanKey}</b> แล้ว —
+              รอผู้ดูแลระบบยืนยันการชำระเงิน
+            </p>
+            <button
+              type="button"
+              onClick={handleCancelRequest}
+              disabled={busy}
+              className="shrink-0 rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-slate-600 disabled:opacity-50"
+            >
+              ยกเลิกคำขอ
+            </button>
+          </div>
+        )}
+        {error && data && (
+          <p className="mt-3 text-sm text-rose-600">{error}</p>
+        )}
       </section>
+
+      {/* เปลี่ยน/อัปเกรดแพ็กเกจ */}
+      {otherPlans.length > 0 && (
+        <section className="rounded-2xl border border-slate-200 bg-white p-6">
+          <h3 className="mb-1 text-base font-bold">เปลี่ยนแพ็กเกจ</h3>
+          <p className="mb-4 text-xs text-slate-400">
+            กดขอเปลี่ยนแพ็กเกจ แล้วโอนชำระเงิน — ผู้ดูแลระบบจะเปิดให้หลังตรวจสอบ
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {otherPlans.map((p) => {
+              const isRequested = data.requestedPlanKey === p.key;
+              return (
+                <div
+                  key={p.key}
+                  className="flex flex-col rounded-xl border border-slate-200 p-4"
+                >
+                  <p className="font-bold">{p.name}</p>
+                  <p className="mb-3 text-sm text-slate-500">
+                    {p.priceMonthly > 0
+                      ? `${baht(p.priceMonthly)} บาท / เดือน`
+                      : 'ฟรี'}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => handleRequest(p.key)}
+                    disabled={busy || data.requestedPlanKey !== null}
+                    className={`mt-auto rounded-lg py-2 text-sm font-semibold disabled:opacity-50 ${
+                      isRequested
+                        ? 'bg-amber-100 text-amber-700'
+                        : 'bg-indigo-600 text-white'
+                    }`}
+                  >
+                    {isRequested ? 'รออนุมัติ' : 'ขอเปลี่ยนเป็นแพ็กเกจนี้'}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* โควต้าการใช้งาน */}
       <section className="rounded-2xl border border-slate-200 bg-white p-6">

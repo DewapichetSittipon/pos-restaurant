@@ -41,6 +41,7 @@ export interface ShopSummary {
   planName: string | null;
   subscriptionStatus: SubscriptionStatus;
   currentPeriodEnd: string | null;
+  requestedPlanKey: string | null; // คำขออัปเกรดที่ร้านกดไว้ รออนุมัติ (null = ไม่มี)
 }
 
 export interface CreateShopPayload {

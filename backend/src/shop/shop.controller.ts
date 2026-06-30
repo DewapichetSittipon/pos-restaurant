@@ -1,6 +1,15 @@
-import { Body, Controller, Get, Patch, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { ShopService } from './shop.service';
 import { UpdateShopDto } from './dto/update-shop.dto';
+import { RequestPlanDto } from './dto/request-plan.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ActiveShopGuard } from '../auth/active-shop.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -29,6 +38,20 @@ export class ShopController {
   @Roles('OWNER', 'WAITER')
   subscriptionSummary(@CurrentShop() shopId: number) {
     return this.subscription.getSummary(shopId);
+  }
+
+  // ร้านกดขออัปเกรดแพ็กเกจ (รออนุมัติจาก admin — จ่ายเงิน manual) — เจ้าของร้านเท่านั้น
+  @Post('subscription/request')
+  @Roles('OWNER')
+  requestPlan(@CurrentShop() shopId: number, @Body() dto: RequestPlanDto) {
+    return this.subscription.requestPlan(shopId, dto.planKey);
+  }
+
+  // ยกเลิกคำขออัปเกรดที่ยังรออนุมัติ
+  @Delete('subscription/request')
+  @Roles('OWNER')
+  cancelPlanRequest(@CurrentShop() shopId: number) {
+    return this.subscription.cancelPlanRequest(shopId);
   }
 
   @Patch()

@@ -32,6 +32,25 @@ export async function fetchSubscription(): Promise<SubscriptionSummary> {
   return data;
 }
 
+// ร้านกดขออัปเกรดแพ็กเกจ (รออนุมัติ — จ่ายเงิน manual)
+export async function requestPlanUpgrade(
+  planKey: string,
+): Promise<SubscriptionSummary> {
+  const { data } = await api.post<SubscriptionSummary>(
+    '/shop/subscription/request',
+    { planKey },
+  );
+  return data;
+}
+
+// ร้านยกเลิกคำขออัปเกรดที่ยังรออนุมัติ
+export async function cancelPlanRequest(): Promise<SubscriptionSummary> {
+  const { data } = await api.delete<SubscriptionSummary>(
+    '/shop/subscription/request',
+  );
+  return data;
+}
+
 // ----- บันทึกการกระทำ (audit log) -----
 export async function fetchAuditLogs(): Promise<AuditLogEntry[]> {
   const { data } = await api.get<AuditLogEntry[]>('/audit');

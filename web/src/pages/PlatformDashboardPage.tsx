@@ -9,6 +9,7 @@ import {
   fetchPlans,
   fetchShops,
   fetchShopStaff,
+  rejectPlanRequest,
   resetStaffPassword,
   setShopPlan,
 } from '../services/platformApi';
@@ -80,6 +81,21 @@ export function PlatformDashboardPage() {
       reload();
     } catch {
       setError('เปลี่ยนแพ็กเกจไม่สำเร็จ');
+    } finally {
+      setChangingPlanId(null);
+    }
+  }
+
+  async function handleRejectRequest(shop: ShopSummary): Promise<void> {
+    setChangingPlanId(shop.id);
+    setError(null);
+    setSuccess(null);
+    try {
+      await rejectPlanRequest(shop.id);
+      setSuccess(`ปฏิเสธคำขออัปเกรดของ "${shop.name}" แล้ว`);
+      reload();
+    } catch {
+      setError('ปฏิเสธคำขอไม่สำเร็จ');
     } finally {
       setChangingPlanId(null);
     }
@@ -418,6 +434,33 @@ export function PlatformDashboardPage() {
                             </option>
                           ))}
                         </select>
+                        {shop.requestedPlanKey && (
+                          <div className="mt-1.5 flex items-center gap-1.5 text-xs">
+                            <span className="rounded bg-amber-100 px-1.5 py-0.5 font-semibold text-amber-700">
+                              ขอ:{' '}
+                              {plans.find((p) => p.key === shop.requestedPlanKey)
+                                ?.name ?? shop.requestedPlanKey}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handlePlanChange(shop, shop.requestedPlanKey!)
+                              }
+                              disabled={changingPlanId === shop.id}
+                              className="font-semibold text-emerald-600 hover:text-emerald-800 disabled:opacity-50"
+                            >
+                              อนุมัติ
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRejectRequest(shop)}
+                              disabled={changingPlanId === shop.id}
+                              className="font-semibold text-rose-500 hover:text-rose-700 disabled:opacity-50"
+                            >
+                              ปฏิเสธ
+                            </button>
+                          </div>
+                        )}
                       </td>
                       <td className="py-2.5 pr-4">{shop.staffCount}</td>
                       <td className="py-2.5 pr-4">{shop.tableCount}</td>

@@ -67,7 +67,7 @@ export class AdminController {
     return this.admin.listPlans();
   }
 
-  // เปลี่ยนแพ็กเกจ/รอบจ่ายของร้าน (manual)
+  // เปลี่ยนแพ็กเกจ/รอบจ่ายของร้าน (manual) — เคลียร์คำขอที่ค้างให้ด้วย
   @Post('shops/:id/plan')
   @UseGuards(PlatformAdminGuard)
   setShopPlan(
@@ -75,6 +75,13 @@ export class AdminController {
     @Body() dto: SetShopPlanDto,
   ) {
     return this.admin.setShopPlan(id, dto);
+  }
+
+  // ปฏิเสธคำขออัปเกรดของร้าน
+  @Delete('shops/:id/plan-request')
+  @UseGuards(PlatformAdminGuard)
+  rejectPlanRequest(@Param('id', ParseIntPipe) id: number) {
+    return this.admin.rejectPlanRequest(id);
   }
 
   @Post('shops')
