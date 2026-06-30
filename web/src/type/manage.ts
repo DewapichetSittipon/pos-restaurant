@@ -12,6 +12,28 @@ export interface ShopInfo {
   loyaltyEarnRate: number; // แต้มต่อ 100 บาท; 0 = ปิดระบบสมาชิก
 }
 
+// สรุปแพ็กเกจ + โควต้าที่ใช้ไปของร้าน (จาก GET /shop/subscription)
+export interface SubscriptionSummary {
+  plan: {
+    key: string;
+    name: string;
+    priceMonthly: number; // สตางค์/เดือน
+    features: string[]; // feature key ที่ปลดล็อก
+    maxStaff: number | null; // null = ไม่จำกัด
+    maxTable: number | null;
+    maxMenu: number | null;
+  } | null;
+  subscriptionStatus:
+    | 'trialing'
+    | 'active'
+    | 'past_due'
+    | 'canceled'
+    | null;
+  currentPeriodEnd: string | null;
+  trialEndsAt: string | null;
+  usage: { staff: number; table: number; menu: number };
+}
+
 // payload ตอนบันทึก (PATCH /shop) — ช่องว่างฝั่ง backend จะแปลงเป็น null
 export interface UpdateShopInput {
   name: string;

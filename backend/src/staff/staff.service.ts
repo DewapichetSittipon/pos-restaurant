@@ -7,10 +7,14 @@ import {
 import { Prisma, StaffRole } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
+import { SubscriptionService } from '../subscription/subscription.service';
 
 @Injectable()
 export class StaffService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly subscription: SubscriptionService,
+  ) {}
 
   // พนักงานทั้งหมดของร้าน (scope ด้วย shopId เสมอ)
   listStaff(shopId: number) {
@@ -28,6 +32,8 @@ export class StaffService {
     password: string,
     role: StaffRole,
   ) {
+    // เพดานพนักงานตาม subscription plan (โยน 402 ถ้าเต็ม)
+    await this.subscription.assertCanAdd(shopId, 'staff');
     try {
       const passwordHash = await bcrypt.hash(password, 10);
       const staff = await this.prisma.staff.create({

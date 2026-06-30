@@ -8,6 +8,7 @@ import type {
   CreateMenuInput,
   ModifierGroupInput,
   ShopInfo,
+  SubscriptionSummary,
   TranslatedNameInput,
   UpdateMenuInput,
   UpdateShopInput,
@@ -22,6 +23,12 @@ export async function fetchShop(): Promise<ShopInfo> {
 
 export async function updateShop(input: UpdateShopInput): Promise<ShopInfo> {
   const { data } = await api.patch<ShopInfo>('/shop', input);
+  return data;
+}
+
+// แพ็กเกจ + โควต้าที่ใช้ไปของร้าน (ฝั่งเจ้าของร้าน)
+export async function fetchSubscription(): Promise<SubscriptionSummary> {
+  const { data } = await api.get<SubscriptionSummary>('/shop/subscription');
   return data;
 }
 

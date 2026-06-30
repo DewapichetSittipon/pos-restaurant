@@ -11,6 +11,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../uploads/storage.service';
 import type { PlatformAdminJwtPayload } from './admin.types';
 import type { CreateShopDto } from './dto/create-shop.dto';
+import type { SetShopPlanDto } from './dto/set-shop-plan.dto';
 
 @Injectable()
 export class AdminService {
@@ -122,11 +123,14 @@ export class AdminService {
     return { ok: true, deletedShop: shop.name };
   }
 
-  // รายการร้านทั้งหมด + จำนวน staff/โต๊ะ
+  // รายการร้านทั้งหมด + จำนวน staff/โต๊ะ + แพ็กเกจ/สถานะจ่ายเงิน
   async listShops() {
     const shops = await this.prisma.shop.findMany({
       orderBy: { id: 'asc' },
-      include: { _count: { select: { staff: true, tables: true } } },
+      include: {
+        _count: { select: { staff: true, tables: true } },
+        plan: { select: { key: true, name: true } },
+      },
     });
     return shops.map((s) => ({
       id: s.id,
@@ -138,7 +142,43 @@ export class AdminService {
       createdAt: s.createdAt,
       staffCount: s._count.staff,
       tableCount: s._count.tables,
+      planKey: s.plan?.key ?? null, // null = ยังไม่ผูก plan (ถือเป็นฟรี)
+      planName: s.plan?.name ?? null,
+      subscriptionStatus: s.subscriptionStatus,
+      currentPeriodEnd: s.currentPeriodEnd,
     }));
+  }
+
+  // แพ็กเกจทั้งหมด (ให้ admin เลือกตอนเปลี่ยน plan ของร้าน)
+  listPlans() {
+    return this.prisma.plan.findMany({
+      orderBy: { sortOrder: 'asc' },
+    });
+  }
+
+  // admin เปลี่ยนแพ็กเกจ/รอบจ่ายของร้าน (manual หลังร้านโอน) — อ้าง Plan ด้วย key
+  async setShopPlan(shopId: number, dto: SetShopPlanDto) {
+    const shop = await this.prisma.shop.findUnique({ where: { id: shopId } });
+    if (!shop) {
+      throw new NotFoundException('ไม่พบร้าน');
+    }
+    const plan = await this.prisma.plan.findUnique({
+      where: { key: dto.planKey },
+    });
+    if (!plan) {
+      throw new NotFoundException('ไม่พบแพ็กเกจที่ระบุ');
+    }
+    return this.prisma.shop.update({
+      where: { id: shopId },
+      data: {
+        planId: plan.id,
+        subscriptionStatus: dto.subscriptionStatus ?? 'active',
+        currentPeriodEnd: dto.currentPeriodEnd
+          ? new Date(dto.currentPeriodEnd)
+          : null,
+      },
+      include: { plan: { select: { key: true, name: true } } },
+    });
   }
 
   // อนุมัติร้านที่สมัครเอง -> เปลี่ยนสถานะ pending เป็น active (ปฏิเสธ = ลบร้านผ่าน deleteShop)

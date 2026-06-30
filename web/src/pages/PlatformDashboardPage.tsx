@@ -6,12 +6,14 @@ import {
   approveShop,
   createShop,
   deleteShop,
+  fetchPlans,
   fetchShops,
   fetchShopStaff,
   resetStaffPassword,
+  setShopPlan,
 } from '../services/platformApi';
 import { usePlatformStore } from '../store/platformStore';
-import type { ShopStaff, ShopSummary } from '../type/platform';
+import type { Plan, ShopStaff, ShopSummary } from '../type/platform';
 
 const EMPTY = { shopName: '', slug: '', staffUsername: '', staffPassword: '' };
 
@@ -21,6 +23,8 @@ export function PlatformDashboardPage() {
   const setAdmin = usePlatformStore((s) => s.setAdmin);
 
   const [shops, setShops] = useState<ShopSummary[]>([]);
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [changingPlanId, setChangingPlanId] = useState<number | null>(null);
   const [form, setForm] = useState(EMPTY);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,6 +58,32 @@ export function PlatformDashboardPage() {
     const timer = window.setInterval(reload, 30000);
     return () => window.clearInterval(timer);
   }, [reload]);
+
+  // โหลดรายการแพ็กเกจครั้งเดียว (ไม่ค่อยเปลี่ยน)
+  useEffect(() => {
+    fetchPlans()
+      .then(setPlans)
+      .catch(() => setError('โหลดรายการแพ็กเกจไม่สำเร็จ'));
+  }, []);
+
+  async function handlePlanChange(
+    shop: ShopSummary,
+    planKey: string,
+  ): Promise<void> {
+    setChangingPlanId(shop.id);
+    setError(null);
+    setSuccess(null);
+    try {
+      await setShopPlan(shop.id, planKey);
+      const planName = plans.find((p) => p.key === planKey)?.name ?? planKey;
+      setSuccess(`เปลี่ยน "${shop.name}" เป็นแพ็กเกจ ${planName} แล้ว`);
+      reload();
+    } catch {
+      setError('เปลี่ยนแพ็กเกจไม่สำเร็จ');
+    } finally {
+      setChangingPlanId(null);
+    }
+  }
 
   // แจ้งเตือนผ่าน title ของแท็บ (เห็นได้แม้สลับไปแท็บอื่น)
   const pendingCount = shops.filter((s) => s.status === 'pending').length;
@@ -348,6 +378,7 @@ export function PlatformDashboardPage() {
                     <th className="py-2 pr-4 font-medium">ชื่อร้าน</th>
                     <th className="py-2 pr-4 font-medium">slug</th>
                     <th className="py-2 pr-4 font-medium">สถานะ</th>
+                    <th className="py-2 pr-4 font-medium">แพ็กเกจ</th>
                     <th className="py-2 pr-4 font-medium">พนักงาน</th>
                     <th className="py-2 pr-4 font-medium">โต๊ะ</th>
                     <th className="py-2 font-medium"></th>
@@ -368,6 +399,25 @@ export function PlatformDashboardPage() {
                             ใช้งาน
                           </span>
                         )}
+                      </td>
+                      <td className="py-2.5 pr-4">
+                        <select
+                          value={shop.planKey ?? ''}
+                          onChange={(e) => handlePlanChange(shop, e.target.value)}
+                          disabled={changingPlanId === shop.id || plans.length === 0}
+                          className="rounded-lg border border-slate-300 px-2 py-1 text-sm disabled:opacity-50"
+                        >
+                          {shop.planKey === null && (
+                            <option value="" disabled>
+                              — ฟรี (ยังไม่ผูก) —
+                            </option>
+                          )}
+                          {plans.map((p) => (
+                            <option key={p.key} value={p.key}>
+                              {p.name}
+                            </option>
+                          ))}
+                        </select>
                       </td>
                       <td className="py-2.5 pr-4">{shop.staffCount}</td>
                       <td className="py-2.5 pr-4">{shop.tableCount}</td>

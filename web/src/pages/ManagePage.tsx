@@ -10,6 +10,7 @@ import { ManageStaff } from '../components/manage/ManageStaff';
 import { ManageMembers } from '../components/manage/ManageMembers';
 import { ManagePromotions } from '../components/manage/ManagePromotions';
 import { ManageAudit } from '../components/manage/ManageAudit';
+import { ManageSubscription } from '../components/manage/ManageSubscription';
 
 type Tab =
   | 'tables'
@@ -21,6 +22,7 @@ type Tab =
   | 'staff'
   | 'members'
   | 'promotions'
+  | 'subscription'
   | 'audit'
   | 'account';
 
@@ -34,6 +36,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'staff', label: 'พนักงาน' },
   { key: 'members', label: 'สมาชิก' },
   { key: 'promotions', label: 'โปรโมชัน' },
+  { key: 'subscription', label: 'แพ็กเกจ' },
   { key: 'audit', label: 'บันทึก' },
   { key: 'account', label: 'บัญชี' },
 ];
@@ -69,6 +72,7 @@ export function ManagePage() {
       {tab === 'staff' && <ManageStaff />}
       {tab === 'members' && <ManageMembers />}
       {tab === 'promotions' && <ManagePromotions />}
+      {tab === 'subscription' && <ManageSubscription />}
       {tab === 'audit' && <ManageAudit />}
       {tab === 'account' && <ManageAccount />}
     </div>

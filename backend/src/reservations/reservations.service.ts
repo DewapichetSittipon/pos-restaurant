@@ -6,6 +6,8 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationService } from '../notifications/notification.service';
 import { CreateReservationDto } from './dto/create-reservation.dto';
+import { SubscriptionService } from '../subscription/subscription.service';
+import { PLAN_FEATURES } from '../common/plan-access';
 
 const TZ = 'Asia/Bangkok';
 
@@ -14,6 +16,7 @@ export class ReservationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notify: NotificationService,
+    private readonly subscription: SubscriptionService,
   ) {}
 
   private bangkokToday(): string {
@@ -37,6 +40,8 @@ export class ReservationsService {
   }
 
   async create(shopId: number, dto: CreateReservationDto) {
+    // จองโต๊ะ = ฟีเจอร์ของแพ็กเกจโปรขึ้นไป
+    await this.subscription.assertFeature(shopId, PLAN_FEATURES.reservations);
     // ถ้าระบุโต๊ะ ต้องเป็นโต๊ะของร้านนี้
     if (dto.tableId != null) {
       const table = await this.prisma.table.findFirst({

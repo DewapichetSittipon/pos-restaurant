@@ -1,10 +1,64 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { PLAN_FEATURES } from '../src/common/plan-access';
 
 const prisma = new PrismaClient();
 
 // ราคาเก็บเป็นสตางค์: บาท * 100
 const baht = (b: number): number => b * 100;
+
+// ฟีเจอร์ทั้งหมด (ยกเว้นหลายสาขา) = ชุดของแพ็กเกจโปร
+const PRO_FEATURES: string[] = [
+  PLAN_FEATURES.reportHistory,
+  PLAN_FEATURES.promotions,
+  PLAN_FEATURES.loyalty,
+  PLAN_FEATURES.i18n,
+  PLAN_FEATURES.reservations,
+  PLAN_FEATURES.shifts,
+  PLAN_FEATURES.escposPrint,
+  PLAN_FEATURES.vat,
+];
+
+// สร้าง 3 แพ็กเกจ — ราคาเป็น placeholder ปรับได้ใน DB ภายหลัง คืน id ของ free/pro ไว้ผูกร้านตัวอย่าง
+async function seedPlans(): Promise<{ freeId: number; proId: number }> {
+  const free = await prisma.plan.create({
+    data: {
+      key: 'free',
+      name: 'ฟรี',
+      priceMonthly: 0,
+      features: [],
+      maxStaff: 3,
+      maxTable: 10,
+      maxMenu: 30,
+      sortOrder: 0,
+    },
+  });
+  const pro = await prisma.plan.create({
+    data: {
+      key: 'pro',
+      name: 'โปร',
+      priceMonthly: baht(390),
+      features: PRO_FEATURES,
+      maxStaff: null, // ไม่จำกัด
+      maxTable: null,
+      maxMenu: null,
+      sortOrder: 1,
+    },
+  });
+  await prisma.plan.create({
+    data: {
+      key: 'business',
+      name: 'ธุรกิจ',
+      priceMonthly: baht(990),
+      features: [...PRO_FEATURES, PLAN_FEATURES.multiBranch],
+      maxStaff: null,
+      maxTable: null,
+      maxMenu: null,
+      sortOrder: 2,
+    },
+  });
+  return { freeId: free.id, proId: pro.id };
+}
 
 // สร้างหนึ่งร้านพร้อมโต๊ะ/หมวด/เมนู/staff ของตัวเอง
 async function seedShop(opts: {
@@ -13,6 +67,7 @@ async function seedShop(opts: {
   username: string;
   password: string;
   tableCount: number;
+  planId?: number;
   address?: string;
   phone?: string;
 }): Promise<void> {
@@ -21,6 +76,8 @@ async function seedShop(opts: {
       name: opts.name,
       slug: opts.slug,
       status: 'active', // ร้าน seed ใช้งานได้ทันที
+      planId: opts.planId, // แพ็กเกจ subscription (undefined = ฟรีโดย default)
+      subscriptionStatus: 'active',
       address: opts.address,
       phone: opts.phone,
     },
@@ -111,8 +168,11 @@ async function seedShop(opts: {
 async function main(): Promise<void> {
   // ล้างข้อมูลเดิม (dev only) + รีเซ็ต autoincrement ให้ id เริ่มที่ 1 เสมอ
   await prisma.$executeRawUnsafe(
-    'TRUNCATE TABLE "service_requests","order_items","bills","menus","categories","tables","staff","shops","platform_admins" RESTART IDENTITY CASCADE;',
+    'TRUNCATE TABLE "service_requests","order_items","bills","menus","categories","tables","staff","shops","plans","platform_admins" RESTART IDENTITY CASCADE;',
   );
+
+  // แพ็กเกจ subscription (สร้างก่อนร้าน เพื่อผูก planId)
+  const { freeId, proId } = await seedPlans();
 
   // ผู้ดูแลแพลตฟอร์ม (เจ้าของระบบ) — ใช้สร้าง/จัดการร้าน
   await prisma.platformAdmin.create({
@@ -123,12 +183,14 @@ async function main(): Promise<void> {
   });
 
   // สองร้านตัวอย่าง เพื่อพิสูจน์ data isolation
+  // ร้าน A = แพ็กเกจโปร (โชว์ฟีเจอร์เต็ม), ร้าน B = ฟรี (โชว์เพดาน resource)
   await seedShop({
     name: 'ร้านอาหารตามสั่ง A',
     slug: 'shop-a',
     username: 'shopa',
     password: 'shopa123',
     tableCount: 10,
+    planId: proId,
     address: '123 ถ.สุขุมวิท แขวงคลองเตย เขตคลองเตย กรุงเทพฯ 10110',
     phone: '02-123-4567',
   });
@@ -138,6 +200,7 @@ async function main(): Promise<void> {
     username: 'shopb',
     password: 'shopb123',
     tableCount: 6,
+    planId: freeId,
     address: '456 ถ.พหลโยธิน แขวงจตุจักร เขตจตุจักร กรุงเทพฯ 10900',
     phone: '02-987-6543',
   });

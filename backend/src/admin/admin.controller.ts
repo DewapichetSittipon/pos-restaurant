@@ -15,6 +15,7 @@ import { AdminService } from './admin.service';
 import { AdminLoginDto } from './dto/admin-login.dto';
 import { CreateShopDto } from './dto/create-shop.dto';
 import { ResetStaffPasswordDto } from './dto/reset-staff-password.dto';
+import { SetShopPlanDto } from './dto/set-shop-plan.dto';
 import { PlatformAdminGuard } from './platform-admin.guard';
 import { ADMIN_TOKEN_COOKIE } from './admin.types';
 import { CurrentAdmin } from './current-admin.decorator';
@@ -57,6 +58,23 @@ export class AdminController {
   @UseGuards(PlatformAdminGuard)
   listShops() {
     return this.admin.listShops();
+  }
+
+  // แพ็กเกจทั้งหมด (ให้เลือกตอนเปลี่ยน plan ของร้าน)
+  @Get('plans')
+  @UseGuards(PlatformAdminGuard)
+  listPlans() {
+    return this.admin.listPlans();
+  }
+
+  // เปลี่ยนแพ็กเกจ/รอบจ่ายของร้าน (manual)
+  @Post('shops/:id/plan')
+  @UseGuards(PlatformAdminGuard)
+  setShopPlan(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: SetShopPlanDto,
+  ) {
+    return this.admin.setShopPlan(id, dto);
   }
 
   @Post('shops')

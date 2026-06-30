@@ -53,6 +53,15 @@ enum ShopStatus {
   active
 }
 
+// สถานะการจ่ายเงินค่าใช้แพลตฟอร์ม — แยกจาก ShopStatus (อนุมัติให้ใช้ระบบ) คนละเรื่องกัน
+// trialing = อยู่ในช่วงทดลอง, active = จ่ายแล้ว/ใช้ได้, past_due = เลยรอบจ่าย, canceled = ยกเลิก
+enum SubscriptionStatus {
+  trialing
+  active
+  past_due
+  canceled
+}
+
 // สถานะกะขาย (cash drawer): open = กำลังเปิดอยู่, closed = ปิดและกระทบยอดแล้ว
 // หนึ่งร้านมีกะ open ได้ทีละหนึ่ง (บังคับใน application logic)
 enum ShiftStatus {
@@ -98,72 +107,101 @@ enum StaffRole {
 // ผู้ดูแลแพลตฟอร์ม (เจ้าของระบบ SaaS) — อยู่เหนือทุกร้าน ใช้สร้าง/จัดการร้าน
 // แยกจาก Staff โดยสิ้นเชิง (ไม่ผูก shopId) login คนละ cookie/endpoint
 model PlatformAdmin {
-  id            Int      @id @default(autoincrement())
-  username      String   @unique
-  passwordHash  String   @map("password_hash")
-  createdAt     DateTime @default(now()) @map("created_at")
+  id           Int      @id @default(autoincrement())
+  username     String   @unique
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
 
   @@map("platform_admins")
 }
 
 // ร้านค้า (tenant) — หนึ่งบัญชี SaaS หนึ่งร้าน มี staff ได้หลายคน
 model Shop {
-  id          Int        @id @default(autoincrement())
-  name        String
-  slug        String     @unique // ใช้ทำ URL/subdomain ภายหลัง
-  status      ShopStatus @default(pending) // ร้านสมัครเองเริ่มที่ pending, admin สร้างเองตั้ง active
-  contactName String?    @map("contact_name") // ชื่อผู้ติดต่อตอนสมัคร (ให้ admin ติดต่อกลับ)
-  address     String? // หัวใบเสร็จ — ที่อยู่ร้าน
-  phone       String? // หัวใบเสร็จ — เบอร์โทร / เบอร์ติดต่อตอนสมัคร
-  taxId       String?    @map("tax_id") // เลขประจำตัวผู้เสียภาษี (ถ้ามี)
-  promptpayId String?    @map("promptpay_id") // PromptPay ID (เบอร์/เลขบัตร) สำหรับสร้าง QR รับโอน
+  id                 Int                @id @default(autoincrement())
+  name               String
+  slug               String             @unique // ใช้ทำ URL/subdomain ภายหลัง
+  status             ShopStatus         @default(pending) // ร้านสมัครเองเริ่มที่ pending, admin สร้างเองตั้ง active
+  contactName        String?            @map("contact_name") // ชื่อผู้ติดต่อตอนสมัคร (ให้ admin ติดต่อกลับ)
+  address            String? // หัวใบเสร็จ — ที่อยู่ร้าน
+  phone              String? // หัวใบเสร็จ — เบอร์โทร / เบอร์ติดต่อตอนสมัคร
+  taxId              String?            @map("tax_id") // เลขประจำตัวผู้เสียภาษี (ถ้ามี)
+  promptpayId        String?            @map("promptpay_id") // PromptPay ID (เบอร์/เลขบัตร) สำหรับสร้าง QR รับโอน
   // VAT/Service charge — เก็บอัตราเป็น basis points (700 = 7.00%, 1000 = 10.00%); 0 = ไม่คิด
-  vatRate           Int     @default(0) @map("vat_rate") // ภาษีมูลค่าเพิ่ม (basis points)
-  vatInclusive      Boolean @default(true) @map("vat_inclusive") // true = ราคาเมนูรวม VAT แล้ว (ถอดออกมาโชว์), false = บวกเพิ่ม
-  serviceChargeRate Int     @default(0) @map("service_charge_rate") // เซอร์วิสชาร์จ (basis points)
+  vatRate            Int                @default(0) @map("vat_rate") // ภาษีมูลค่าเพิ่ม (basis points)
+  vatInclusive       Boolean            @default(true) @map("vat_inclusive") // true = ราคาเมนูรวม VAT แล้ว (ถอดออกมาโชว์), false = บวกเพิ่ม
+  serviceChargeRate  Int                @default(0) @map("service_charge_rate") // เซอร์วิสชาร์จ (basis points)
   // สมาชิก/แต้มสะสม: แต้มที่ได้ต่อ 100 บาท (0 = ปิดระบบสมาชิก); แลกแต้ม 1 แต้ม = 1 บาทเสมอ
-  loyaltyEarnRate   Int     @default(0) @map("loyalty_earn_rate")
+  loyaltyEarnRate    Int                @default(0) @map("loyalty_earn_rate")
   // ตัวนับเลขที่ใบเสร็จ/ใบกำกับภาษีแบบรันต่อเนื่องต่อร้าน — increment atomic ตอน checkout
-  receiptCounter    Int     @default(0) @map("receipt_counter")
-  createdAt   DateTime   @default(now()) @map("created_at")
+  receiptCounter     Int                @default(0) @map("receipt_counter")
+  // --- Subscription / billing (แยกจาก ShopStatus) ---
+  // planId = null → ถือว่าอยู่ plan ฟรี (default) ตาม Plan.key = "free"
+  planId             Int?               @map("plan_id")
+  subscriptionStatus SubscriptionStatus @default(trialing) @map("subscription_status")
+  currentPeriodEnd   DateTime?          @map("current_period_end") // วันหมดรอบ plan ปัจจุบัน (manual ตั้งโดย admin ในเฟสแรก)
+  trialEndsAt        DateTime?          @map("trial_ends_at")
+  createdAt          DateTime           @default(now()) @map("created_at")
 
-  staff      Staff[]
-  tables     Table[]
-  categories Category[]
-  menus      Menu[]
-  bills      Bill[]
-  shifts     Shift[]
+  plan         Plan?         @relation(fields: [planId], references: [id])
+  staff        Staff[]
+  tables       Table[]
+  categories   Category[]
+  menus        Menu[]
+  bills        Bill[]
+  shifts       Shift[]
   reservations Reservation[]
-  members    Member[]
-  promotions Promotion[]
+  members      Member[]
+  promotions   Promotion[]
 
   @@map("shops")
+}
+
+// แพ็กเกจการใช้งานแพลตฟอร์ม (tenant billing) — ข้อมูลใน DB ไม่ hardcode เพื่อปรับ packaging โดยไม่ deploy
+// ราคาเป็น "สตางค์" เหมือนเงินทุกที่ในระบบ. limit = null หมายถึง "ไม่จำกัด"
+model Plan {
+  id           Int      @id @default(autoincrement())
+  key          String   @unique // "free" | "pro" | "business" — ใช้อ้างอิงในโค้ด/seed (immutable)
+  name         String // ชื่อโชว์ลูกค้า เช่น "โปร"
+  priceMonthly Int      @default(0) @map("price_monthly") // สตางค์/เดือน (0 = ฟรี)
+  // รายการ feature key ที่ plan นี้ปลดล็อก เช่น ["promotions","i18n","loyalty","reservations",
+  // "shifts","escpos_print","vat","report_history","multi_branch"]. ตรวจด้วย assertFeature()
+  features     String[] @default([])
+  maxStaff     Int?     @map("max_staff") // null = ไม่จำกัด
+  maxTable     Int?     @map("max_table")
+  maxMenu      Int?     @map("max_menu")
+  isActive     Boolean  @default(true) @map("is_active") // false = ซ่อนจากหน้าเลือก plan (ของเก่ายังผูกได้)
+  sortOrder    Int      @default(0) @map("sort_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  shops Shop[]
+
+  @@map("plans")
 }
 
 // โปรโมชันแบบมีกฎ (rule-based) — ร้านตั้งเงื่อนไขเอง ระบบเลือกอันที่เข้าเงื่อนไขให้ตอนเช็คบิล
 // เงื่อนไข: ยอดขั้นต่ำ + ช่วงเวลา (happy hour) + วันในสัปดาห์ + เฉพาะสมาชิก/วันเกิด
 model Promotion {
-  id          Int           @id @default(autoincrement())
-  shopId      Int           @map("shop_id")
-  name        String
-  type        PromotionType
+  id           Int           @id @default(autoincrement())
+  shopId       Int           @map("shop_id")
+  name         String
+  type         PromotionType
   // ค่าส่วนลด: percent = basis points (1000 = 10%); amount = สตางค์; bogo = ไม่ใช้ (อิง buy/get)
-  value       Int           @default(0)
-  minSubtotal Int           @default(0) @map("min_subtotal") // ยอดขั้นต่ำ (สตางค์) ถึงใช้ได้, 0 = ไม่จำกัด
-  maxDiscount Int?          @map("max_discount") // เพดานส่วนลด (สตางค์) เฉพาะ percent, null = ไม่จำกัด
+  value        Int           @default(0)
+  minSubtotal  Int           @default(0) @map("min_subtotal") // ยอดขั้นต่ำ (สตางค์) ถึงใช้ได้, 0 = ไม่จำกัด
+  maxDiscount  Int?          @map("max_discount") // เพดานส่วนลด (สตางค์) เฉพาะ percent, null = ไม่จำกัด
   // ช่วงเวลา happy hour: นาทีจากเที่ยงคืน 0–1439 (เวลาไทย); null ทั้งคู่ = ทั้งวัน; start>end = ข้ามเที่ยงคืน
-  startMinute Int?          @map("start_minute")
-  endMinute   Int?          @map("end_minute")
+  startMinute  Int?          @map("start_minute")
+  endMinute    Int?          @map("end_minute")
   // วันในสัปดาห์ที่ใช้ได้ (bitmask: bit0=อาทิตย์ … bit6=เสาร์); 127 = ทุกวัน
-  daysOfWeek  Int           @default(127) @map("days_of_week")
+  daysOfWeek   Int           @default(127) @map("days_of_week")
   // BOGO: ซื้อ buyQty แถม getQty (นับรวมทั้งบิล)
-  buyQty      Int           @default(0) @map("buy_qty")
-  getQty      Int           @default(0) @map("get_qty")
-  membersOnly Boolean       @default(false) @map("members_only") // true = ใช้ได้เฉพาะบิลที่ผูกสมาชิก (ราคาสมาชิก)
-  birthdayOnly Boolean      @default(false) @map("birthday_only") // true = ใช้ได้เฉพาะสมาชิกที่วันนี้ตรงวันเกิด
-  isActive    Boolean       @default(true) @map("is_active")
-  priority    Int           @default(0) // ลำดับเสนอ (สูงกว่ามาก่อน เมื่อส่วนลดเท่ากัน)
-  createdAt   DateTime      @default(now()) @map("created_at")
+  buyQty       Int           @default(0) @map("buy_qty")
+  getQty       Int           @default(0) @map("get_qty")
+  membersOnly  Boolean       @default(false) @map("members_only") // true = ใช้ได้เฉพาะบิลที่ผูกสมาชิก (ราคาสมาชิก)
+  birthdayOnly Boolean       @default(false) @map("birthday_only") // true = ใช้ได้เฉพาะสมาชิกที่วันนี้ตรงวันเกิด
+  isActive     Boolean       @default(true) @map("is_active")
+  priority     Int           @default(0) // ลำดับเสนอ (สูงกว่ามาก่อน เมื่อส่วนลดเท่ากัน)
+  createdAt    DateTime      @default(now()) @map("created_at")
 
   shop  Shop   @relation(fields: [shopId], references: [id])
   bills Bill[]
@@ -174,7 +212,7 @@ model Promotion {
 
 // สมาชิกร้าน (loyalty) — ระบุด้วยเบอร์โทร (unique ต่อร้าน) สะสม/แลกแต้ม
 model Member {
-  id        Int      @id @default(autoincrement())
+  id        Int       @id @default(autoincrement())
   shopId    Int       @map("shop_id")
   phone     String
   name      String?
@@ -191,13 +229,13 @@ model Member {
 }
 
 model Table {
-  id           Int         @id @default(autoincrement())
-  shopId       Int         @map("shop_id")
-  tableNumber  String      @map("table_number")
-  status       TableStatus @default(vacant)
+  id          Int         @id @default(autoincrement())
+  shopId      Int         @map("shop_id")
+  tableNumber String      @map("table_number")
+  status      TableStatus @default(vacant)
 
-  shop  Shop   @relation(fields: [shopId], references: [id])
-  bills Bill[]
+  shop         Shop          @relation(fields: [shopId], references: [id])
+  bills        Bill[]
   reservations Reservation[]
 
   // table_number unique ต่อร้าน (คนละร้านมีโต๊ะเลขเดียวกันได้)
@@ -207,11 +245,11 @@ model Table {
 }
 
 model Category {
-  id      Int     @id @default(autoincrement())
-  shopId  Int     @map("shop_id")
-  name    String
-  nameEn  String? @map("name_en") // ชื่อแปลอังกฤษ (null = ใช้ name ไทย)
-  nameZh  String? @map("name_zh") // ชื่อแปลจีน (null = ใช้ name ไทย)
+  id     Int     @id @default(autoincrement())
+  shopId Int     @map("shop_id")
+  name   String
+  nameEn String? @map("name_en") // ชื่อแปลอังกฤษ (null = ใช้ name ไทย)
+  nameZh String? @map("name_zh") // ชื่อแปลจีน (null = ใช้ name ไทย)
 
   shop  Shop   @relation(fields: [shopId], references: [id])
   menus Menu[]
@@ -221,25 +259,25 @@ model Category {
 }
 
 model Menu {
-  id           Int      @id @default(autoincrement())
-  shopId       Int      @map("shop_id")
-  categoryId   Int      @map("category_id")
-  name         String
-  nameEn       String?  @map("name_en") // ชื่อแปลอังกฤษ (null = ใช้ name ไทย)
-  nameZh       String?  @map("name_zh") // ชื่อแปลจีน (null = ใช้ name ไทย)
-  price        Int // สตางค์ (combo: ราคาคงที่ของทั้งเซต)
-  stockCount   Int?     @map("stock_count") // null = ไม่นับสต็อก (combo: null เสมอ — อิงสต็อกส่วนประกอบ)
-  isAvailable  Boolean  @default(true) @map("is_available") // สวิตช์ manual
-  isArchived   Boolean  @default(false) @map("is_archived") // soft delete
-  isCombo      Boolean  @default(false) @map("is_combo") // true = ชุด/คอมโบ (ราคาคงที่ แตกเป็นส่วนประกอบให้ครัว)
-  imageUrl     String?  @map("image_url") // path รูป เช่น /uploads/menus/xxx.jpg (null = ใช้ placeholder)
+  id          Int     @id @default(autoincrement())
+  shopId      Int     @map("shop_id")
+  categoryId  Int     @map("category_id")
+  name        String
+  nameEn      String? @map("name_en") // ชื่อแปลอังกฤษ (null = ใช้ name ไทย)
+  nameZh      String? @map("name_zh") // ชื่อแปลจีน (null = ใช้ name ไทย)
+  price       Int // สตางค์ (combo: ราคาคงที่ของทั้งเซต)
+  stockCount  Int?    @map("stock_count") // null = ไม่นับสต็อก (combo: null เสมอ — อิงสต็อกส่วนประกอบ)
+  isAvailable Boolean @default(true) @map("is_available") // สวิตช์ manual
+  isArchived  Boolean @default(false) @map("is_archived") // soft delete
+  isCombo     Boolean @default(false) @map("is_combo") // true = ชุด/คอมโบ (ราคาคงที่ แตกเป็นส่วนประกอบให้ครัว)
+  imageUrl    String? @map("image_url") // path รูป เช่น /uploads/menus/xxx.jpg (null = ใช้ placeholder)
 
-  shop           Shop            @relation(fields: [shopId], references: [id])
-  category       Category        @relation(fields: [categoryId], references: [id])
-  orderItems     OrderItem[]
-  modifierGroups ModifierGroup[]
-  comboComponents  ComboComponent[] @relation("ComboParent") // ถ้าเมนูนี้เป็น combo: รายการในเซต
-  usedInCombos     ComboComponent[] @relation("ComboMember") // combo ที่ใช้เมนูนี้เป็นส่วนประกอบ
+  shop            Shop             @relation(fields: [shopId], references: [id])
+  category        Category         @relation(fields: [categoryId], references: [id])
+  orderItems      OrderItem[]
+  modifierGroups  ModifierGroup[]
+  comboComponents ComboComponent[] @relation("ComboParent") // ถ้าเมนูนี้เป็น combo: รายการในเซต
+  usedInCombos    ComboComponent[] @relation("ComboMember") // combo ที่ใช้เมนูนี้เป็นส่วนประกอบ
 
   @@index([shopId])
   @@index([categoryId])
@@ -271,9 +309,9 @@ model ModifierGroup {
   nameEn    String? @map("name_en") // ชื่อแปลอังกฤษ (null = ใช้ name ไทย)
   nameZh    String? @map("name_zh") // ชื่อแปลจีน (null = ใช้ name ไทย)
   // กฎการเลือก: minSelect 0 = ไม่บังคับ, >=1 = บังคับเลือก; maxSelect 1 = เลือกได้ตัวเดียว, >1 = หลายตัว
-  minSelect Int    @default(0) @map("min_select")
-  maxSelect Int    @default(1) @map("max_select")
-  sortOrder Int    @default(0) @map("sort_order")
+  minSelect Int     @default(0) @map("min_select")
+  maxSelect Int     @default(1) @map("max_select")
+  sortOrder Int     @default(0) @map("sort_order")
 
   menu    Menu             @relation(fields: [menuId], references: [id])
   options ModifierOption[]
@@ -300,44 +338,44 @@ model ModifierOption {
 }
 
 model Bill {
-  id          Int        @id @default(autoincrement())
-  shopId         Int            @map("shop_id")
-  tableId        Int?           @map("table_id") // null = ออเดอร์กลับบ้าน/เดลิเวอรี (ไม่ผูกโต๊ะ)
-  orderType      OrderType      @default(dine_in) @map("order_type")
+  id                Int            @id @default(autoincrement())
+  shopId            Int            @map("shop_id")
+  tableId           Int?           @map("table_id") // null = ออเดอร์กลับบ้าน/เดลิเวอรี (ไม่ผูกโต๊ะ)
+  orderType         OrderType      @default(dine_in) @map("order_type")
   // ข้อมูลลูกค้า (เฉพาะ takeaway/delivery)
-  customerName    String? @map("customer_name")
-  customerPhone   String? @map("customer_phone")
-  deliveryAddress String? @map("delivery_address")
-  deliveryFee     Int     @default(0) @map("delivery_fee") // สตางค์ ค่าส่ง (บวกท้ายยอดสุทธิ)
-  totalPrice     Int?           @map("total_price") // สตางค์, snapshot ยอดสุทธิที่ต้องจ่าย (รวมเซอร์วิส/VAT, หลังหักส่วนลด) ตอน checkout
-  discount       Int            @default(0) // สตางค์, ส่วนลดที่ใช้ตอน checkout
+  customerName      String?        @map("customer_name")
+  customerPhone     String?        @map("customer_phone")
+  deliveryAddress   String?        @map("delivery_address")
+  deliveryFee       Int            @default(0) @map("delivery_fee") // สตางค์ ค่าส่ง (บวกท้ายยอดสุทธิ)
+  totalPrice        Int?           @map("total_price") // สตางค์, snapshot ยอดสุทธิที่ต้องจ่าย (รวมเซอร์วิส/VAT, หลังหักส่วนลด) ตอน checkout
+  discount          Int            @default(0) // สตางค์, ส่วนลดที่ใช้ตอน checkout
   // snapshot การคิดเซอร์วิสชาร์จ/VAT ตอน checkout (กันยอดเพี้ยนเมื่อร้านแก้อัตราภายหลัง)
-  serviceCharge     Int     @default(0) @map("service_charge") // สตางค์
-  serviceChargeRate Int     @default(0) @map("service_charge_rate") // basis points ที่ใช้
-  vatAmount         Int     @default(0) @map("vat_amount") // สตางค์
-  vatRate           Int     @default(0) @map("vat_rate") // basis points ที่ใช้
-  vatInclusive      Boolean @default(true) @map("vat_inclusive") // โหมด VAT ตอนคิด
-  paymentMethod  PaymentMethod? @map("payment_method") // วิธีชำระ (เซ็ตตอน checkout)
-  receivedAmount Int?           @map("received_amount") // สตางค์ที่รับมา (เงินสด) — ใช้คำนวณเงินทอน
-  shiftId        Int?           @map("shift_id") // กะที่บิลนี้ถูกเช็คบิล (ใช้กระทบยอดเงินสด)
+  serviceCharge     Int            @default(0) @map("service_charge") // สตางค์
+  serviceChargeRate Int            @default(0) @map("service_charge_rate") // basis points ที่ใช้
+  vatAmount         Int            @default(0) @map("vat_amount") // สตางค์
+  vatRate           Int            @default(0) @map("vat_rate") // basis points ที่ใช้
+  vatInclusive      Boolean        @default(true) @map("vat_inclusive") // โหมด VAT ตอนคิด
+  paymentMethod     PaymentMethod? @map("payment_method") // วิธีชำระ (เซ็ตตอน checkout)
+  receivedAmount    Int?           @map("received_amount") // สตางค์ที่รับมา (เงินสด) — ใช้คำนวณเงินทอน
+  shiftId           Int?           @map("shift_id") // กะที่บิลนี้ถูกเช็คบิล (ใช้กระทบยอดเงินสด)
   // สมาชิก/แต้ม (snapshot ตอน checkout)
-  memberId        Int? @map("member_id")
-  pointsEarned    Int  @default(0) @map("points_earned") // แต้มที่ได้รับจากบิลนี้
-  pointsRedeemed  Int  @default(0) @map("points_redeemed") // แต้มที่ใช้แลกส่วนลด (1 แต้ม = 1 บาท)
+  memberId          Int?           @map("member_id")
+  pointsEarned      Int            @default(0) @map("points_earned") // แต้มที่ได้รับจากบิลนี้
+  pointsRedeemed    Int            @default(0) @map("points_redeemed") // แต้มที่ใช้แลกส่วนลด (1 แต้ม = 1 บาท)
   // โปรโมชันที่ใช้ตอน checkout (snapshot — เก็บชื่อ+ยอดลด กันโปรถูกแก้/ลบภายหลัง)
-  promotionId       Int?    @map("promotion_id")
-  promotionName     String? @map("promotion_name") // snapshot ชื่อโปรตอนใช้
-  promotionDiscount Int     @default(0) @map("promotion_discount") // สตางค์ ส่วนลดจากโปร (แยกจาก discount=ส่วนลดมือ)
-  status         BillStatus     @default(pending)
+  promotionId       Int?           @map("promotion_id")
+  promotionName     String?        @map("promotion_name") // snapshot ชื่อโปรตอนใช้
+  promotionDiscount Int            @default(0) @map("promotion_discount") // สตางค์ ส่วนลดจากโปร (แยกจาก discount=ส่วนลดมือ)
+  status            BillStatus     @default(pending)
   // เลขที่ใบเสร็จ/ใบกำกับภาษี — รันต่อเนื่องต่อร้าน (set ตอน checkout), null = ยังไม่ชำระ
-  receiptNumber  Int?           @map("receipt_number")
-  qrToken        String         @unique @map("qr_token") // UUID (unique ทั้งระบบ)
-  createdAt      DateTime       @default(now()) @map("created_at")
-  paidAt         DateTime?      @map("paid_at")
+  receiptNumber     Int?           @map("receipt_number")
+  qrToken           String         @unique @map("qr_token") // UUID (unique ทั้งระบบ)
+  createdAt         DateTime       @default(now()) @map("created_at")
+  paidAt            DateTime?      @map("paid_at")
   // การคืนเงิน (เซ็ตเมื่อ status -> refunded)
-  refundReason   String?        @map("refund_reason")
-  refundedAt     DateTime?      @map("refunded_at")
-  refundedByName String?        @map("refunded_by_name") // snapshot ชื่อผู้คืนเงิน
+  refundReason      String?        @map("refund_reason")
+  refundedAt        DateTime?      @map("refunded_at")
+  refundedByName    String?        @map("refunded_by_name") // snapshot ชื่อผู้คืนเงิน
 
   shop            Shop             @relation(fields: [shopId], references: [id])
   table           Table?           @relation(fields: [tableId], references: [id])
@@ -347,6 +385,8 @@ model Bill {
   orderItems      OrderItem[]
   serviceRequests ServiceRequest[]
 
+  // เลขที่ใบเสร็จห้ามซ้ำภายในร้านเดียวกัน (null ซ้ำได้ — บิลที่ยังไม่ชำระ)
+  @@unique([shopId, receiptNumber])
   // หนึ่งโต๊ะมี Bill ที่ pending ได้ทีละหนึ่ง (บังคับใน application logic)
   @@index([shopId])
   @@index([tableId])
@@ -355,8 +395,6 @@ model Bill {
   @@index([shiftId])
   @@index([memberId])
   @@index([promotionId])
-  // เลขที่ใบเสร็จห้ามซ้ำภายในร้านเดียวกัน (null ซ้ำได้ — บิลที่ยังไม่ชำระ)
-  @@unique([shopId, receiptNumber])
   @@map("bills")
 }
 
@@ -434,8 +472,8 @@ model OrderItem {
   createdAt  DateTime        @default(now()) @map("created_at") // เวลาสั่ง
   servedAt   DateTime?       @map("served_at") // เวลาเสิร์ฟ (เซ็ตตอน status -> served)
 
-  bill       Bill @relation(fields: [billId], references: [id])
-  menu       Menu @relation(fields: [menuId], references: [id])
+  bill       Bill                      @relation(fields: [billId], references: [id])
+  menu       Menu                      @relation(fields: [menuId], references: [id])
   modifiers  OrderItemModifier[]
   comboItems OrderItemComboComponent[] // snapshot ส่วนประกอบ (เฉพาะรายการที่เป็น combo)
 
@@ -477,11 +515,11 @@ model OrderItemModifier {
 }
 
 model Staff {
-  id            Int       @id @default(autoincrement())
-  shopId        Int       @map("shop_id")
-  username      String    @unique // unique ทั้งระบบ = login ตรงโดยไม่ต้องเลือกร้าน
-  passwordHash  String    @map("password_hash")
-  role          StaffRole @default(OWNER) // staff เดิม/คนแรกของร้าน = OWNER
+  id           Int       @id @default(autoincrement())
+  shopId       Int       @map("shop_id")
+  username     String    @unique // unique ทั้งระบบ = login ตรงโดยไม่ต้องเลือกร้าน
+  passwordHash String    @map("password_hash")
+  role         StaffRole @default(OWNER) // staff เดิม/คนแรกของร้าน = OWNER
 
   shop Shop @relation(fields: [shopId], references: [id])
 
@@ -490,13 +528,13 @@ model Staff {
 }
 
 model ServiceRequest {
-  id         Int                  @id @default(autoincrement())
-  billId     Int                  @map("bill_id")
-  type       ServiceRequestType
-  status     ServiceRequestStatus @default(pending)
-  createdAt  DateTime             @default(now()) @map("created_at")
+  id        Int                  @id @default(autoincrement())
+  billId    Int                  @map("bill_id")
+  type      ServiceRequestType
+  status    ServiceRequestStatus @default(pending)
+  createdAt DateTime             @default(now()) @map("created_at")
 
-  bill       Bill @relation(fields: [billId], references: [id])
+  bill Bill @relation(fields: [billId], references: [id])
 
   // ผูกร้านผ่าน bill
   @@index([billId])

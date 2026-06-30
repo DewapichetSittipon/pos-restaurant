@@ -2,6 +2,7 @@ import { api } from './api';
 import type {
   CreateShopPayload,
   CreateShopResult,
+  Plan,
   PlatformAdmin,
   ShopStaff,
   ShopSummary,
@@ -42,6 +43,22 @@ export async function createShop(
 
 export async function deleteShop(id: number): Promise<void> {
   await api.delete(`/admin/shops/${id}`);
+}
+
+// ----- แพ็กเกจ (subscription plan) -----
+
+export async function fetchPlans(): Promise<Plan[]> {
+  const { data } = await api.get<Plan[]>('/admin/plans');
+  return data;
+}
+
+// admin เปลี่ยนแพ็กเกจของร้าน (manual) — ตั้งสถานะเป็น active ให้เลย
+export async function setShopPlan(
+  shopId: number,
+  planKey: string,
+  currentPeriodEnd?: string,
+): Promise<void> {
+  await api.post(`/admin/shops/${shopId}/plan`, { planKey, currentPeriodEnd });
 }
 
 // ----- สมัครเปิดร้านเอง -----

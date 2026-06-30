@@ -8,6 +8,8 @@ import {
 } from '../common/promotion-math';
 import { CreatePromotionDto } from './dto/create-promotion.dto';
 import { UpdatePromotionDto } from './dto/update-promotion.dto';
+import { SubscriptionService } from '../subscription/subscription.service';
+import { PLAN_FEATURES } from '../common/plan-access';
 
 // แปลงรายการที่สั่ง → ราคาต่อหน่วยกระจายตาม quantity (สำหรับคิด BOGO)
 function explodeUnitPrices(
@@ -22,7 +24,10 @@ function explodeUnitPrices(
 
 @Injectable()
 export class PromotionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly subscription: SubscriptionService,
+  ) {}
 
   list(shopId: number) {
     return this.prisma.promotion.findMany({
@@ -31,7 +36,9 @@ export class PromotionsService {
     });
   }
 
-  create(shopId: number, dto: CreatePromotionDto) {
+  async create(shopId: number, dto: CreatePromotionDto) {
+    // promotion engine = ฟีเจอร์ของแพ็กเกจโปรขึ้นไป
+    await this.subscription.assertFeature(shopId, PLAN_FEATURES.promotions);
     return this.prisma.promotion.create({
       data: {
         shopId,

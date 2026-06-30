@@ -11,6 +11,7 @@ import { SocketEvent } from '../events/socket.constants';
 import { computeBillTotals } from '../common/bill-math';
 import { orderTypeLabel } from '../common/order-type';
 import { PromotionsService } from '../promotions/promotions.service';
+import { SubscriptionService } from '../subscription/subscription.service';
 
 // include มาตรฐานสำหรับเช็คบิล (รายการ+ตัวเลือก, โต๊ะ, ร้าน)
 const CHECKOUT_INCLUDE = {
@@ -39,10 +40,13 @@ export class TablesService {
     private readonly prisma: PrismaService,
     private readonly events: EventsGateway,
     private readonly promotions: PromotionsService,
+    private readonly subscription: SubscriptionService,
   ) {}
 
   // เพิ่มโต๊ะใหม่ในร้าน (table_number unique ต่อร้าน)
   async createTable(shopId: number, tableNumber: string) {
+    // เพดานจำนวนโต๊ะตาม subscription plan (โยน 402 ถ้าเต็ม)
+    await this.subscription.assertCanAdd(shopId, 'table');
     try {
       return await this.prisma.table.create({
         data: { shopId, tableNumber: tableNumber.trim() },

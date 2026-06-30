@@ -19,12 +19,14 @@ import {
   type UploadedImageFile,
 } from '../uploads/uploads.constants';
 import { translatedNames, translatedNamesPartial } from '../common/i18n';
+import { SubscriptionService } from '../subscription/subscription.service';
 
 @Injectable()
 export class MenusService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
+    private readonly subscription: SubscriptionService,
   ) {}
 
   // แคตตาล็อกเมนูของร้านหนึ่ง แยกตามหมวด (ไม่รวมเมนูที่ archived)
@@ -100,6 +102,8 @@ export class MenusService {
 
   // สร้างชุด/คอมโบ = เมนูที่ isCombo=true (ราคาคงที่, ไม่นับสต็อกตัวเอง) + รายการส่วนประกอบ
   async createCombo(shopId: number, dto: CreateComboDto) {
+    // เพดานจำนวนเมนู (รวมคอมโบ) ตาม subscription plan
+    await this.subscription.assertCanAdd(shopId, 'menu');
     await this.assertCategoryOwned(shopId, dto.categoryId);
     await this.assertComboComponents(shopId, dto.components);
     return this.prisma.menu.create({
@@ -183,6 +187,8 @@ export class MenusService {
 
   // เพิ่มเมนูใหม่ — categoryId ต้องเป็นของร้านนี้
   async create(shopId: number, dto: CreateMenuDto) {
+    // เพดานจำนวนเมนูตาม subscription plan (โยน 402 ถ้าเต็ม)
+    await this.subscription.assertCanAdd(shopId, 'menu');
     await this.assertCategoryOwned(shopId, dto.categoryId);
     return this.prisma.menu.create({
       data: {
