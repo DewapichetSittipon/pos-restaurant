@@ -425,7 +425,7 @@ export function PlatformDashboardPage() {
                         >
                           {shop.planKey === null && (
                             <option value="" disabled>
-                              — ฟรี (ยังไม่ผูก) —
+                              — ยังไม่ผูกแพ็กเกจ —
                             </option>
                           )}
                           {plans.map((p) => (

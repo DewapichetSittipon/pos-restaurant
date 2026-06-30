@@ -26,26 +26,16 @@ const STATUS_LABELS: Record<string, string> = {
   canceled: 'ยกเลิกแล้ว',
 };
 
-// คำโปรย/ตำแหน่งของแต่ละ tier (อิง Plan.key)
+// คำโปรย/ตำแหน่งของแต่ละ tier (อิง Plan.key — 'free' = แพ็กเกจ "เริ่มต้น")
 const PLAN_TAGLINE: Record<string, string> = {
-  free: 'เริ่มต้นใช้งาน ร้านเล็ก',
-  pro: 'ครบทุกฟีเจอร์ ร้านเดียว',
-  business: 'ครบทุกฟีเจอร์ + ดูแลใกล้ชิด',
+  free: 'ราคาประหยัด ร้านเล็ก',
+  pro: 'ครบทุกฟีเจอร์ ไม่จำกัด',
 };
 
 // คำอธิบายว่าแต่ละแพ็กเกจเหมาะกับใคร / ได้อะไร (โชว์ในการ์ด)
 const PLAN_DESC: Record<string, string> = {
-  free: 'สำหรับร้านเล็กที่เพิ่งเริ่ม — ใช้ระบบขายหลัก (สั่ง/เช็คบิล/โต๊ะ/QR) ได้ครบ แต่จำกัดจำนวนพนักงาน/โต๊ะ/เมนู และยังไม่มีฟีเจอร์เสริม',
+  free: 'สำหรับร้านเล็กที่เพิ่งเริ่ม — ใช้ระบบขายหลัก (สั่ง/เช็คบิล/โต๊ะ/QR) ได้ครบในราคาประหยัด แต่จำกัดจำนวนพนักงาน/โต๊ะ/เมนู และยังไม่มีฟีเจอร์เสริม',
   pro: 'สำหรับร้านที่ต้องการเครื่องมือครบ — ปลดล็อกทุกฟีเจอร์ (โปรโมชั่น สมาชิก รายงานย้อนหลัง จองโต๊ะ ฯลฯ) และไม่จำกัดจำนวนพนักงาน/โต๊ะ/เมนู',
-  business: 'ได้ฟีเจอร์ครบเท่าแพ็กเกจโปร พร้อมบริการดูแลใกล้ชิด — เหมาะกับร้านที่ต้องการความช่วยเหลือเร็วและการตั้งค่าแบบมือโปร',
-};
-
-// จุดเด่นเชิงบริการ (ไม่ใช่ feature flag ในโค้ด — เป็นบริการที่ทีมส่งมอบเอง)
-const PLAN_PERKS: Record<string, string[]> = {
-  business: [
-    'ซัพพอร์ตลำดับความสำคัญสูง (ตอบเร็วกว่า)',
-    'ช่วยตั้งค่าร้าน/เมนูให้ตอนเริ่มใช้',
-  ],
 };
 
 const baht = (satang: number): string =>
@@ -156,18 +146,6 @@ function PlanCard({
           );
         })}
       </ul>
-
-      {/* จุดเด่นเชิงบริการ (เฉพาะแพ็กเกจที่มี) */}
-      {PLAN_PERKS[plan.key] && (
-        <ul className="space-y-1.5 border-t border-slate-100 py-4 text-sm">
-          {PLAN_PERKS[plan.key].map((perk) => (
-            <li key={perk} className="flex items-start gap-2">
-              <span className="mt-0.5 shrink-0 text-indigo-500">✦</span>
-              <span className="text-slate-700">{perk}</span>
-            </li>
-          ))}
-        </ul>
-      )}
 
       {/* ปุ่ม */}
       <div className="mt-auto pt-2">
@@ -297,7 +275,7 @@ export function ManageSubscription(): React.JSX.Element {
         <div>
           <p className="text-sm text-slate-500">แพ็กเกจปัจจุบัน</p>
           <p className="text-2xl font-bold">
-            {data.plan?.name ?? 'ฟรี'}
+            {data.plan?.name ?? 'เริ่มต้น'}
             {data.subscriptionStatus && (
               <span className="ml-2 align-middle rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-semibold text-indigo-700">
                 {STATUS_LABELS[data.subscriptionStatus] ?? data.subscriptionStatus}
