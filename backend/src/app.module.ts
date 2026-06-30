@@ -21,6 +21,7 @@ import { PromotionsModule } from './promotions/promotions.module';
 import { AuditModule } from './audit/audit.module';
 import { StorageModule } from './uploads/storage.module';
 import { NotificationModule } from './notifications/notification.module';
+import { OnboardingModule } from './onboarding/onboarding.module';
 import { HealthController } from './health/health.controller';
 
 @Module({
@@ -48,6 +49,7 @@ import { HealthController } from './health/health.controller';
     AuditModule,
     StorageModule,
     NotificationModule,
+    OnboardingModule,
   ],
   controllers: [HealthController],
 })

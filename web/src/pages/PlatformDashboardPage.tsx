@@ -282,6 +282,28 @@ export function PlatformDashboardPage() {
                       {shop.contactName ?? '—'}
                       {shop.phone ? ` · ${shop.phone}` : ''}
                     </p>
+                    {/* แพ็กเกจที่เลือก + สลิป (ถ้าร้านส่งมาแล้ว) */}
+                    {shop.requestedPlanKey && (
+                      <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs">
+                        <span className="rounded bg-indigo-100 px-1.5 py-0.5 font-semibold text-indigo-700">
+                          เลือก:{' '}
+                          {plans.find((p) => p.key === shop.requestedPlanKey)
+                            ?.name ?? shop.requestedPlanKey}
+                        </span>
+                        {shop.paymentSlipUrl ? (
+                          <a
+                            href={shop.paymentSlipUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="font-semibold text-indigo-600 underline"
+                          >
+                            ดูสลิป
+                          </a>
+                        ) : (
+                          <span className="text-amber-600">ยังไม่แนบสลิป</span>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div className="flex shrink-0 gap-2">
                     <button

@@ -41,7 +41,8 @@ export interface ShopSummary {
   planName: string | null;
   subscriptionStatus: SubscriptionStatus;
   currentPeriodEnd: string | null;
-  requestedPlanKey: string | null; // คำขออัปเกรดที่ร้านกดไว้ รออนุมัติ (null = ไม่มี)
+  requestedPlanKey: string | null; // แพ็กเกจที่ร้านเลือก/ขอ รออนุมัติ (null = ไม่มี)
+  paymentSlipUrl: string | null; // สลิปที่ร้านแนบ (ให้ admin ตรวจ)
 }
 
 export interface CreateShopPayload {

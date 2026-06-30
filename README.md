@@ -210,6 +210,7 @@ LINE_CHANNEL_ACCESS_TOKEN=   # แจ้งเตือน LINE (push)
 LINE_TARGET_ID=
 SMTP_URL=                    # แจ้งเตือน Email
 ALERT_EMAIL_TO=
+PLATFORM_PROMPTPAY=          # เบอร์/เลข PromptPay ของแพลตฟอร์ม — ใช้สร้าง QR ให้ร้านโอนค่าแพ็กเกจตอน onboarding (ไม่ตั้ง = ร้านเห็นข้อความ "ติดต่อแอดมิน")
 ```
 
 ## Ops & Production-readiness

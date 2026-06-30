@@ -140,8 +140,10 @@ model Shop {
   subscriptionStatus SubscriptionStatus @default(trialing) @map("subscription_status")
   currentPeriodEnd   DateTime?          @map("current_period_end") // วันหมดรอบ plan ปัจจุบัน (manual ตั้งโดย admin ในเฟสแรก)
   trialEndsAt        DateTime?          @map("trial_ends_at")
-  // แพ็กเกจที่ร้านกด "ขออัปเกรด" รออนุมัติ (อ้าง Plan.key) — null = ไม่มีคำขอค้าง; admin อนุมัติแล้วเคลียร์เป็น null
+  // แพ็กเกจที่ร้านกด "ขออัปเกรด"/เลือกตอน onboarding รออนุมัติ (อ้าง Plan.key) — null = ไม่มีคำขอค้าง
   requestedPlanKey   String?            @map("requested_plan_key")
+  // URL สลิปโอนเงินที่ร้านอัปโหลดตอนสมัคร/อัปเกรด (ให้ admin ตรวจก่อนอนุมัติ) — เคลียร์เมื่ออนุมัติ
+  paymentSlipUrl     String?            @map("payment_slip_url")
   createdAt          DateTime           @default(now()) @map("created_at")
 
   plan         Plan?         @relation(fields: [planId], references: [id])

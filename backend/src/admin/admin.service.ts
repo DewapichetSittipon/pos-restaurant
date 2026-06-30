@@ -146,7 +146,8 @@ export class AdminService {
       planName: s.plan?.name ?? null,
       subscriptionStatus: s.subscriptionStatus,
       currentPeriodEnd: s.currentPeriodEnd,
-      requestedPlanKey: s.requestedPlanKey, // คำขออัปเกรดที่รออนุมัติ (null = ไม่มี)
+      requestedPlanKey: s.requestedPlanKey, // แพ็กเกจที่ร้านเลือก/ขอ รออนุมัติ (null = ไม่มี)
+      paymentSlipUrl: s.paymentSlipUrl, // สลิปที่ร้านแนบ (ให้ admin ตรวจ)
     }));
   }
 
@@ -195,7 +196,8 @@ export class AdminService {
     });
   }
 
-  // อนุมัติร้านที่สมัครเอง -> เปลี่ยนสถานะ pending เป็น active (ปฏิเสธ = ลบร้านผ่าน deleteShop)
+  // อนุมัติร้านที่สมัครเอง -> active + ผูกแพ็กเกจที่ร้านเลือก (ถ้ามี) + ตั้งรอบ 30 วัน
+  // ปฏิเสธ = ลบร้านผ่าน deleteShop
   async approveShop(shopId: number) {
     const shop = await this.prisma.shop.findUnique({ where: { id: shopId } });
     if (!shop) {
@@ -204,10 +206,30 @@ export class AdminService {
     if (shop.status === 'active') {
       throw new ConflictException('ร้านนี้เปิดใช้งานอยู่แล้ว');
     }
-    return this.prisma.shop.update({
-      where: { id: shopId },
-      data: { status: 'active' },
-    });
+
+    // ถ้าร้านเลือกแพ็กเกจ + แนบสลิปไว้ → ผูกแพ็กเกจ + ตั้งรอบบิล 30 วันนับจากวันอนุมัติ
+    const data: Prisma.ShopUpdateInput = {
+      status: 'active',
+      requestedPlanKey: null,
+      paymentSlipUrl: null,
+    };
+    if (shop.requestedPlanKey) {
+      const plan = await this.prisma.plan.findUnique({
+        where: { key: shop.requestedPlanKey },
+      });
+      if (plan) {
+        const periodEnd = new Date();
+        periodEnd.setDate(periodEnd.getDate() + 30);
+        data.plan = { connect: { id: plan.id } };
+        data.subscriptionStatus = 'active';
+        data.currentPeriodEnd = periodEnd;
+      }
+    }
+
+    // ลบไฟล์สลิปออกจาก storage (best-effort — เก็บ record ผ่านการอนุมัติแล้ว)
+    await this.storage.remove(shop.paymentSlipUrl);
+
+    return this.prisma.shop.update({ where: { id: shopId }, data });
   }
 
   // พนักงานของร้าน (ให้ admin เลือกตอน reset รหัส กรณีร้านล็อกตัวเองออก)
