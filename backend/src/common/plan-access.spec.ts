@@ -27,8 +27,8 @@ describe('planHasFeature', () => {
     expect(planHasFeature(pro, PLAN_FEATURES.i18n)).toBe(true);
   });
 
-  it('โปรไม่มีฟีเจอร์ที่ไม่อยู่ในรายการ (เช่น multi_branch)', () => {
-    expect(planHasFeature(pro, PLAN_FEATURES.multiBranch)).toBe(false);
+  it('โปรไม่มีฟีเจอร์ที่ไม่อยู่ในรายการ', () => {
+    expect(planHasFeature(pro, PLAN_FEATURES.reservations)).toBe(false);
   });
 });
 

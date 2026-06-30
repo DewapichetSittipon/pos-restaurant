@@ -45,12 +45,13 @@ async function seedPlans(): Promise<{ freeId: number; proId: number }> {
       sortOrder: 1,
     },
   });
+  // ธุรกิจ = ฟีเจอร์ซอฟต์แวร์เท่าโปร + จุดขายเชิงบริการ (ซัพพอร์ต/ช่วยตั้งค่า — ไม่ใช่ feature flag)
   await prisma.plan.create({
     data: {
       key: 'business',
       name: 'ธุรกิจ',
       priceMonthly: baht(990),
-      features: [...PRO_FEATURES, PLAN_FEATURES.multiBranch],
+      features: PRO_FEATURES,
       maxStaff: null,
       maxTable: null,
       maxMenu: null,

@@ -17,7 +17,6 @@ const FEATURE_LABELS: { key: string; label: string }[] = [
   { key: 'shifts', label: 'กะ / ปิดยอดลิ้นชัก' },
   { key: 'escpos_print', label: 'พิมพ์ครัวตรง ESC/POS' },
   { key: 'vat', label: 'VAT / ใบกำกับภาษี' },
-  { key: 'multi_branch', label: 'หลายสาขา' },
 ];
 
 const STATUS_LABELS: Record<string, string> = {
@@ -31,14 +30,22 @@ const STATUS_LABELS: Record<string, string> = {
 const PLAN_TAGLINE: Record<string, string> = {
   free: 'เริ่มต้นใช้งาน ร้านเล็ก',
   pro: 'ครบทุกฟีเจอร์ ร้านเดียว',
-  business: 'หลายสาขา ไม่จำกัด',
+  business: 'ครบทุกฟีเจอร์ + ดูแลใกล้ชิด',
 };
 
 // คำอธิบายว่าแต่ละแพ็กเกจเหมาะกับใคร / ได้อะไร (โชว์ในการ์ด)
 const PLAN_DESC: Record<string, string> = {
   free: 'สำหรับร้านเล็กที่เพิ่งเริ่ม — ใช้ระบบขายหลัก (สั่ง/เช็คบิล/โต๊ะ/QR) ได้ครบ แต่จำกัดจำนวนพนักงาน/โต๊ะ/เมนู และยังไม่มีฟีเจอร์เสริม',
   pro: 'สำหรับร้านที่ต้องการเครื่องมือครบ — ปลดล็อกทุกฟีเจอร์ (โปรโมชั่น สมาชิก รายงานย้อนหลัง จองโต๊ะ ฯลฯ) และไม่จำกัดจำนวนพนักงาน/โต๊ะ/เมนู',
-  business: 'สำหรับเจ้าของหลายสาขา — ได้ทุกอย่างในแพ็กเกจโปร และรองรับการจัดการหลายสาขาในบัญชีเดียว',
+  business: 'ได้ฟีเจอร์ครบเท่าแพ็กเกจโปร พร้อมบริการดูแลใกล้ชิด — เหมาะกับร้านที่ต้องการความช่วยเหลือเร็วและการตั้งค่าแบบมือโปร',
+};
+
+// จุดเด่นเชิงบริการ (ไม่ใช่ feature flag ในโค้ด — เป็นบริการที่ทีมส่งมอบเอง)
+const PLAN_PERKS: Record<string, string[]> = {
+  business: [
+    'ซัพพอร์ตลำดับความสำคัญสูง (ตอบเร็วกว่า)',
+    'ช่วยตั้งค่าร้าน/เมนูให้ตอนเริ่มใช้',
+  ],
 };
 
 const baht = (satang: number): string =>
@@ -149,6 +156,18 @@ function PlanCard({
           );
         })}
       </ul>
+
+      {/* จุดเด่นเชิงบริการ (เฉพาะแพ็กเกจที่มี) */}
+      {PLAN_PERKS[plan.key] && (
+        <ul className="space-y-1.5 border-t border-slate-100 py-4 text-sm">
+          {PLAN_PERKS[plan.key].map((perk) => (
+            <li key={perk} className="flex items-start gap-2">
+              <span className="mt-0.5 shrink-0 text-indigo-500">✦</span>
+              <span className="text-slate-700">{perk}</span>
+            </li>
+          ))}
+        </ul>
+      )}
 
       {/* ปุ่ม */}
       <div className="mt-auto pt-2">

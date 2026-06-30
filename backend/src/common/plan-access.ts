@@ -13,7 +13,6 @@ export const PLAN_FEATURES = {
   shifts: 'shifts', // กะ/cash drawer
   escposPrint: 'escpos_print', // พิมพ์ครัวตรง ESC/POS
   vat: 'vat', // VAT / ใบกำกับภาษี
-  multiBranch: 'multi_branch', // หลายสาขา
 } as const;
 
 export type PlanFeature = (typeof PLAN_FEATURES)[keyof typeof PLAN_FEATURES];
