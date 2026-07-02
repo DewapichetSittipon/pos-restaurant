@@ -1,6 +1,8 @@
 import { io, type Socket } from 'socket.io-client';
 
-const url = import.meta.env.VITE_API_URL ?? 'http://localhost:3333';
+// prod: VITE_API_URL ว่าง → undefined → socket.io เชื่อม same-origin (ผ่าน Worker proxy)
+// dev: ใช้ backend localhost ตรง ๆ
+const url = import.meta.env.VITE_API_URL || undefined;
 
 // ต้องตรงกับ backend (ดู ADR-0006 / shared/src/index.ts)
 export const SOCKET_EVENTS = {
